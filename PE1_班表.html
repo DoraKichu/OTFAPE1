@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>班表手帳 2025-2026 (雲端同步版)</title>
+    
+    <!-- 引入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 引入 Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 將 Firebase 模組掛載到 window
+        window.Firebase = { 
+            initializeApp, 
+            getAuth, 
+            signInAnonymously, 
+            onAuthStateChanged, 
+            signInWithCustomToken,
+            getFirestore, 
+            doc, 
+            getDoc, 
+            setDoc, 
+            onSnapshot,
+            collection
+        };
+    </script>
+
+    <style>
+        /* 系統預設字體 */
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background-color: #FEF9E7;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* 背景紋理 */
+        .paper-texture {
+            background-color: #FEF9E7;
+            background-image: radial-gradient(#E5E0C8 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* 隱藏捲軸但保留功能 */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .btn-press:active {
+            transform: translateY(1px);
+        }
+        
+        th, td {
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body class="paper-texture h-screen overflow-hidden text-slate-700">
+    <div id="root" class="h-full flex flex-col"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, onSnapshot, collection } = window.Firebase;
+
+        // --- SVG Icons ---
+        const IconBase = ({ children, size = 20, className = "", ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>
+        );
+        const ChevronLeft = (props) => <IconBase {...props}><path d="m15 18-6-6 6-6"/></IconBase>;
+        const ChevronRight = (props) => <IconBase {...props}><path d="m9 18 6-6-6-6"/></IconBase>;
+        const Zap = (props) => <IconBase {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></IconBase>;
+        const Trash2 = (props) => <IconBase {...props}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconBase>;
+        const RotateCcw = (props) => <IconBase {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></IconBase>;
+        const AlertTriangle = (props) => <IconBase {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></IconBase>;
+        const XIcon = (props) => <IconBase {...props}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconBase>;
+        const CalendarIcon = (props) => <IconBase {...props}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></IconBase>;
+        const Eraser = (props) => <IconBase {...props}><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></IconBase>;
+        const Hand = (props) => <IconBase {...props}><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a9 9 0 0 1 3.24-14.22"/></IconBase>;
+
+        // --- Firebase Configuration ---
+        // 使用您提供的真實金鑰 (otfape1)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAQcIBp-giqjuOxE5D7EjelLnIpimFYDpk",
+            authDomain: "otfape1.firebaseapp.com",
+            projectId: "otfape1",
+            storageBucket: "otfape1.firebasestorage.app",
+            messagingSenderId: "19216643898",
+            appId: "1:19216643898:web:cebc48af06015bcad78203"
+        };
+        
+        const appId = 'shift-schedule-app'; 
+
+        // 初始化 Firebase
+        let db = null;
+        let auth = null;
+        let isConfigured = false;
+        
+        if (firebaseConfig) {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                isConfigured = true;
+            } catch (err) {
+                console.error("Firebase init failed:", err);
+            }
+        }
+
+        // --- CONSTANTS ---
+        const USERS = [
+            '周哲維', '陳泓廷', '王泓凱', '游佳憲', '陳嘉軒', 
+            '陳浩霖', '趙婉卉', '張皓翔', '翁子涵', '林明儒'
+        ];
+
+        const SHIFT_TYPES = {
+            NORMAL: { id: 'NORMAL', name: '常日', time: '08:30-17:30', color: 'bg-blue-600 text-white border-blue-800', icon: '☀️' },
+            EVE_WEEKDAY: { id: 'EVE_WEEKDAY', name: '平日夜', time: '15:00-24:00', color: 'bg-violet-700 text-white border-violet-900', icon: '🌙' },
+            EVE_WEEKEND: { id: 'EVE_WEEKEND', name: '假日夜', time: '15:00-24:00', color: 'bg-pink-600 text-white border-pink-800', icon: '✨' },
+            ROTATION_A: { id: 'ROTATION_A', name: 'A班', time: '07:20-19:20', color: 'bg-orange-500 text-white border-orange-700', icon: '🅰️' },
+            ROTATION_B: { id: 'ROTATION_B', name: 'B班', time: '07:20-19:20', color: 'bg-teal-600 text-white border-teal-800', icon: '🅱️' },
+            LEAVE: { id: 'LEAVE', name: '請假', time: 'OFF', color: 'bg-slate-700 text-white border-slate-900', icon: '🏖️' }
+        };
+
+        const TOOL_ERASER = {
+            id: 'ERASER', name: '清除', time: '',
+            color: 'bg-white text-slate-700 border-slate-400 border-2 border-dashed', 
+            icon: <Eraser size={18} />
+        };
+
+        const HOLIDAYS = {
+            '2025-01-25': '春節', '2025-01-26': '春節', '2025-01-27': '除夕', '2025-01-28': '春節', '2025-01-29': '春節', 
+            '2025-01-30': '春節', '2025-01-31': '春節', '2025-02-01': '春節', '2025-02-02': '春節',
+            '2025-02-28': '228', '2025-03-01': '228', '2025-03-02': '228',
+            '2025-04-03': '兒童', '2025-04-04': '清明', '2025-04-05': '清明', '2025-04-06': '清明',
+            '2025-05-30': '端午', '2025-05-31': '端午', '2025-06-01': '端午',
+            '2025-09-27': '教師', '2025-09-28': '教師', '2025-09-29': '教師',
+            '2025-10-04': '中秋', '2025-10-05': '中秋', '2025-10-06': '中秋',
+            '2025-10-10': '國慶', '2025-10-11': '國慶', '2025-10-12': '國慶',
+            '2025-10-24': '光復', '2025-10-25': '光復', '2025-10-26': '光復',
+            '2026-02-14': '春節', '2026-02-15': '春節', '2026-02-16': '除夕', '2026-02-17': '春節', '2026-02-18': '春節',
+            '2026-02-19': '春節', '2026-02-20': '春節', '2026-02-21': '春節', '2026-02-22': '春節',
+            '2026-02-27': '228', '2026-02-28': '228', '2026-03-01': '228',
+            '2026-04-03': '兒童', '2026-04-04': '清明', '2026-04-05': '清明', '2026-04-06': '清明',
+            '2026-05-01': '勞動', '2026-05-02': '勞動', '2026-05-03': '勞動',
+            '2026-06-19': '端午', '2026-06-20': '端午', '2026-06-21': '端午',
+            '2026-09-25': '中秋', '2026-09-26': '中秋', '2026-09-27': '教師', '2026-09-28': '教師',
+            '2026-10-09': '國慶', '2026-10-10': '國慶', '2026-10-11': '國慶',
+            '2026-10-24': '光復', '2026-10-25': '光復', '2026-10-26': '光復',
+            '2026-12-25': '行憲', '2026-12-26': '行憲', '2026-12-27': '行憲',
+        };
+
+        const getDateStr = (date) => {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        };
+
+        const isWeekend = (date) => {
+            const day = date.getDay();
+            return day === 0 || day === 6;
+        };
+
+        const getShiftLabel = (shift) => {
+            if (!shift) return '';
+            if (shift.id === 'LEAVE') return shift.icon;
+            if (shift.id === 'NORMAL') return '常';
+            if (shift.id === 'EVE_WEEKDAY') return '夜';
+            if (shift.id === 'EVE_WEEKEND') return '假';
+            if (shift.id === 'ROTATION_A') return 'A';
+            if (shift.id === 'ROTATION_B') return 'B';
+            return shift.name[0];
+        };
+
+        // --- APP COMPONENT ---
+        function ShiftScheduleMatrix() {
+            const [viewStartDate, setViewStartDate] = useState(() => {
+                const d = new Date();
+                d.setDate(d.getDate() - 7); 
+                return d;
+            });
+
+            const [schedule, setSchedule] = useState({}); 
+            const [selectedTool, setSelectedTool] = useState(null); 
+            const scrollRef = useRef(null);
+
+            // Modals
+            const [activeCell, setActiveCell] = useState(null); 
+            const [showAutoFill, setShowAutoFill] = useState(false);
+            const [confirmModal, setConfirmModal] = useState({ show: false, title: '', msg: '', action: null, isDangerous: false });
+            const [user, setUser] = useState(null);
+
+            // AutoFill Params
+            const [targetUser, setTargetUser] = useState(USERS[0]);
+            const [autoStartDate, setAutoStartDate] = useState(getDateStr(new Date()));
+            const [autoRule, setAutoRule] = useState('4-2');
+            const [autoShiftType, setAutoShiftType] = useState('ROTATION_A');
+            const [autoRounds, setAutoRounds] = useState(8); 
+            const [autoWeeksDuration, setAutoWeeksDuration] = useState(1);
+
+            // --- Firebase Auth & Sync ---
+            useEffect(() => {
+                if (!auth) return;
+                const initAuth = async () => {
+                    try {
+                        await signInAnonymously(auth);
+                    } catch (error) {
+                        console.error("Auth failed:", error);
+                        // 防呆提示
+                        if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed') {
+                            alert("⚠️ 請注意：\n您尚未在 Firebase 後台開啟「匿名登入 (Anonymous)」功能。\n請至 Firebase Console -> Authentication -> Sign-in method 開啟它，否則無法儲存資料！");
+                        }
+                    }
+                };
+                initAuth();
+                const unsubscribe = onAuthStateChanged(auth, setUser);
+                return () => unsubscribe();
+            }, []);
+
+            useEffect(() => {
+                if (!isConfigured) return;
+                if (!user || !db) return;
+                
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'shift_schedule_team', 'shared_matrix');
+                
+                const unsubscribe = onSnapshot(docRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        setSchedule(docSnap.data().schedule || {});
+                    } else {
+                        setDoc(docRef, { schedule: {} }, { merge: true });
+                    }
+                }, (error) => {
+                    console.error("Sync error:", error);
+                });
+
+                return () => unsubscribe();
+            }, [user]);
+
+            // Save to DB Helper
+            const saveToDb = async (newSchedule) => {
+                if (!isConfigured) {
+                    setSchedule(newSchedule); 
+                    return;
+                }
+                if (!db || !user) return;
+
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'shift_schedule_team', 'shared_matrix');
+                try {
+                    await setDoc(docRef, { schedule: newSchedule }, { merge: true });
+                } catch (e) {
+                    console.error("Save error:", e);
+                    alert("儲存失敗，請檢查網路連線");
+                }
+            };
+
+            // Handlers
+            const prevPeriod = () => setViewStartDate(prev => { const d = new Date(prev); d.setDate(d.getDate() - 14); return d; });
+            const nextPeriod = () => setViewStartDate(prev => { const d = new Date(prev); d.setDate(d.getDate() + 14); return d; });
+            const goToToday = () => { const d = new Date(); d.setDate(d.getDate() - 7); setViewStartDate(d); };
+
+            const handleCellClick = (user, dateStr) => {
+                if (!selectedTool) {
+                    const currentShift = schedule[user]?.[dateStr];
+                    setActiveCell({ user, dateStr, currentShift });
+                    return;
+                }
+
+                const newSchedule = { ...schedule };
+                const userSchedule = { ...(newSchedule[user] || {}) };
+                
+                if (selectedTool === 'ERASER') {
+                    delete userSchedule[dateStr];
+                } else {
+                    userSchedule[dateStr] = selectedTool;
+                }
+                newSchedule[user] = userSchedule;
+                saveToDb(newSchedule);
+            };
+
+            const toggleTool = (toolId) => {
+                if (selectedTool === toolId) setSelectedTool(null); 
+                else setSelectedTool(toolId); 
+            };
+
+            const applyShiftFromModal = (shiftId) => {
+                if (!activeCell) return;
+                const { user, dateStr } = activeCell;
+                const newSchedule = { ...schedule };
+                const userSchedule = { ...(newSchedule[user] || {}) };
+
+                if (shiftId === 'ERASER') {
+                    delete userSchedule[dateStr];
+                } else {
+                    userSchedule[dateStr] = shiftId;
+                }
+                newSchedule[user] = userSchedule;
+                saveToDb(newSchedule);
+                setActiveCell(null);
+            };
+
+            const openAutoFillFromCell = () => {
+                if (!activeCell) return;
+                setTargetUser(activeCell.user);
+                setAutoStartDate(activeCell.dateStr);
+                setActiveCell(null);
+                setShowAutoFill(true);
+            };
+
+            const confirmClearUser = (userName) => {
+                setConfirmModal({
+                    show: true, title: `清除 ${userName} 的紀錄`, msg: `確定要清除該人員的所有排班紀錄嗎？`, isDangerous: true,
+                    action: () => {
+                        const newSchedule = { ...schedule };
+                        delete newSchedule[userName];
+                        saveToDb(newSchedule);
+                        setConfirmModal({ show: false });
+                    }
+                });
+            };
+
+            const runAutoFill = () => {
+                const start = new Date(autoStartDate);
+                if (isNaN(start.getTime())) return;
+                
+                let end = new Date(start);
+                if (autoRule === '4-2') {
+                    const totalDays = autoRounds * 4;
+                    end.setDate(start.getDate() + totalDays);
+                } else if (autoRule === 'week-night') {
+                    end.setDate(end.getDate() + (autoWeeksDuration * 7)); 
+                } 
+
+                const newSchedule = { ...schedule };
+                const userSch = { ...(newSchedule[targetUser] || {}) };
+                let current = new Date(start);
+
+                if (autoRule === '4-2') {
+                    const totalDays = autoRounds * 4;
+                    for (let i = 0; i < totalDays; i++) {
+                        let d = new Date(start);
+                        d.setDate(start.getDate() + i);
+                        if (i % 4 < 2) {
+                            userSch[getDateStr(d)] = autoShiftType;
+                        }
+                    }
+                } 
+                else if (autoRule === 'week-night') {
+                    while (current < end) {
+                        const day = current.getDay();
+                        if (day !== 6) { 
+                            userSch[getDateStr(current)] = 'EVE_WEEKDAY';
+                        }
+                        current.setDate(current.getDate() + 1);
+                    }
+                }
+
+                newSchedule[targetUser] = userSch;
+                saveToDb(newSchedule);
+                setShowAutoFill(false);
+            };
+
+            const days = (() => {
+                const arr = [];
+                for (let i = 0; i < 30; i++) {
+                    const date = new Date(viewStartDate);
+                    date.setDate(viewStartDate.getDate() + i);
+                    const dateStr = getDateStr(date);
+                    arr.push({
+                        date, dateStr, dayNum: date.getDate(),
+                        dayOfWeek: ['日','一','二','三','四','五','六'][date.getDay()],
+                        isWeekend: isWeekend(date),
+                        holiday: HOLIDAYS[dateStr]
+                    });
+                }
+                return arr;
+            })();
+
+            return (
+                <React.Fragment>
+                    {/* 未設定 Firebase 的提示 */}
+                    {!isConfigured && (
+                        <div className="bg-red-500 text-white text-center text-xs py-1">
+                            尚未設定 Firebase，資料將無法儲存。請編輯 HTML 檔案填入設定。
+                        </div>
+                    )}
+
+                    {/* 頂部控制區 */}
+                    <header className="z-30 flex-none bg-white/90 backdrop-blur-sm shadow-sm border-b-2 border-stone-200">
+                        <div className="w-full overflow-x-auto hide-scrollbar py-3 px-2">
+                            <div className="flex items-center gap-3 min-w-max">
+                                
+                                {/* 1. 日期導航 */}
+                                <div className="flex items-center bg-white border-2 border-slate-800 rounded-xl px-1 py-1">
+                                    <button onClick={prevPeriod} className="p-2 hover:bg-slate-100 rounded-lg transition"><ChevronLeft size={20}/></button>
+                                    <div className="px-3 font-black text-lg text-center text-slate-800 leading-tight min-w-[110px]">
+                                        {viewStartDate.getFullYear()}.<span className="text-2xl text-orange-600 ml-1">{viewStartDate.getMonth() + 1}</span>
+                                        <span className="text-xs text-slate-400 block -mt-1">{viewStartDate.getDate()}日起</span>
+                                    </div>
+                                    <button onClick={nextPeriod} className="p-2 hover:bg-slate-100 rounded-lg transition"><ChevronRight size={20}/></button>
+                                </div>
+
+                                {/* 2. 回到今天 */}
+                                <button onClick={goToToday} className="flex flex-col items-center justify-center px-3 py-2 bg-slate-800 text-white rounded-xl border-2 border-slate-800 btn-press active:scale-95 transition" title="回到今天">
+                                    <CalendarIcon size={18} />
+                                    <span className="text-[10px] font-bold mt-0.5">Today</span>
+                                </button>
+
+                                {/* 分隔線 */}
+                                <div className="w-0.5 h-10 bg-slate-200 mx-1"></div>
+
+                                {/* 3. 清除按鈕 (ERASER) - 最前面 */}
+                                <button
+                                    onClick={() => toggleTool(TOOL_ERASER.id)}
+                                    className={`
+                                        group relative flex flex-row items-center justify-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none
+                                        ${selectedTool === TOOL_ERASER.id 
+                                        ? 'scale-105 z-10 -translate-y-1 ' + TOOL_ERASER.color.replace('border-', 'border-slate-900 ') 
+                                        : 'bg-white border-slate-200 hover:border-slate-800 hover:-translate-y-0.5 opacity-90 hover:opacity-100'}
+                                    `}
+                                >
+                                    <span className="text-xl filter drop-shadow-sm">{TOOL_ERASER.icon}</span>
+                                    <span className={`text-base font-bold ${selectedTool === TOOL_ERASER.id ? 'text-slate-900' : 'text-slate-700'}`}>
+                                        {TOOL_ERASER.name}
+                                    </span>
+                                    {selectedTool === TOOL_ERASER.id && (
+                                    <div className="absolute -top-2 -right-2 bg-slate-900 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center border-2 border-white">✓</div>
+                                    )}
+                                </button>
+
+                                {/* 4. 班別工具 */}
+                                {Object.values(SHIFT_TYPES).map(type => (
+                                    <button
+                                        key={type.id}
+                                        onClick={() => toggleTool(type.id)}
+                                        draggable="false"
+                                        className={`
+                                            group relative flex flex-row items-center justify-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none
+                                            ${selectedTool === type.id 
+                                            ? 'scale-105 z-10 -translate-y-1 ' + type.color.replace('border-', 'border-slate-900 ') 
+                                            : 'bg-white border-slate-200 hover:border-slate-800 hover:-translate-y-0.5 opacity-90 hover:opacity-100'}
+                                        `}
+                                    >
+                                        <span className="text-xl filter drop-shadow-sm">{type.icon}</span>
+                                        <span className={`text-base font-bold ${selectedTool === type.id ? 'text-white' : 'text-slate-700'}`}>
+                                            {type.name}
+                                        </span>
+                                        {selectedTool === type.id && (
+                                        <div className="absolute -top-2 -right-2 bg-slate-900 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center border-2 border-white">✓</div>
+                                        )}
+                                    </button>
+                                ))}
+
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* 主表格區域 */}
+                    <div className="flex-1 overflow-hidden relative flex flex-col">
+                        <div className="flex-1 overflow-auto" ref={scrollRef}>
+                            <table className="border-collapse w-full min-w-max">
+                                <thead className="sticky top-0 z-20 bg-stone-50 shadow-sm">
+                                    <tr>
+                                        <th className="sticky left-0 z-30 bg-stone-100 border-b-2 border-r-2 border-stone-300 min-w-[140px] p-2 text-center font-black text-slate-600 text-xl tracking-widest shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
+                                            姓名
+                                        </th>
+                                        {days.map(day => (
+                                            <th key={day.dateStr} className={`
+                                                border-b-2 border-r border-stone-200 min-w-[48px] py-2 text-center relative
+                                                ${day.holiday ? 'bg-sky-100' : (day.isWeekend ? 'bg-rose-50' : 'bg-white')}
+                                            `}>
+                                                <div className={`text-sm font-bold mb-0.5 ${day.isWeekend || day.holiday ? 'text-rose-600' : 'text-slate-500'}`}>
+                                                    {day.dayOfWeek}
+                                                </div>
+                                                <div className={`
+                                                    text-xl font-black leading-none
+                                                    ${getDateStr(new Date()) === day.dateStr ? 'text-blue-600 underline decoration-wavy decoration-2' : 'text-slate-800'}
+                                                `}>
+                                                    {day.dayNum}
+                                                </div>
+                                                {day.holiday && (
+                                                    <div className="absolute -bottom-2 left-0 w-full flex justify-center z-10">
+                                                        <span className="bg-sky-500 text-white border border-sky-700 text-[10px] px-1.5 py-0.5 rounded-full shadow-sm truncate max-w-full font-bold">
+                                                            {day.holiday}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                    <tr className="bg-stone-100 border-b-2 border-stone-300">
+                                        <th className="sticky left-0 z-30 bg-stone-200 border-r-2 border-stone-300 p-2 font-bold text-sm text-slate-600 text-center shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
+                                            人力配置
+                                        </th>
+                                        {days.map(day => {
+                                            const count = USERS.reduce((acc, user) => {
+                                                const s = schedule[user]?.[day.dateStr];
+                                                return (s && s !== 'LEAVE' && s !== 'ERASER') ? acc + 1 : acc;
+                                            }, 0);
+                                            
+                                            return (
+                                                <th key={`sum-${day.dateStr}`} className="border-r border-stone-300 text-center py-1 bg-stone-100">
+                                                    <span className={`text-lg font-bold ${count > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
+                                                        {count || '-'}
+                                                    </span>
+                                                </th>
+                                            );
+                                        })}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {USERS.map((user, idx) => (
+                                        <tr key={user} className="group/row bg-white hover:bg-yellow-50/50 transition-colors border-b border-stone-200">
+                                            <td className="sticky left-0 z-10 bg-white group-hover/row:bg-yellow-50/50 border-r-2 border-stone-300 p-0 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+                                                <div className="px-3 py-3 h-full group/namecell min-w-[140px] flex items-center justify-between">
+                                                    <span className="font-bold text-slate-800 text-lg whitespace-nowrap overflow-hidden tracking-wide text-center flex-1">
+                                                        {user}
+                                                    </span>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); confirmClearUser(user); }}
+                                                        className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-full transition-all opacity-0 group-hover/namecell:opacity-100 ml-1"
+                                                        title="擦掉紀錄"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            {days.map(day => {
+                                                const shiftId = schedule[user]?.[day.dateStr];
+                                                const shift = shiftId && SHIFT_TYPES[shiftId] ? SHIFT_TYPES[shiftId] : null;
+                                                const shiftLabel = getShiftLabel(shift);
+                                                const bgClass = day.holiday ? 'bg-sky-50/30' : (day.isWeekend ? 'bg-rose-50/30' : '');
+
+                                                return (
+                                                    <td 
+                                                        key={`${user}-${day.dateStr}`}
+                                                        onClick={() => handleCellClick(user, day.dateStr)}
+                                                        className={`
+                                                            border-r border-stone-100 text-center cursor-pointer relative p-1 align-middle
+                                                            hover:bg-slate-100/50 active:bg-slate-200/50
+                                                            ${bgClass}
+                                                        `}
+                                                    >
+                                                        {shift ? (
+                                                            <div className={`
+                                                                w-full h-11 flex items-center justify-center font-black text-xl border-2 transition-transform hover:scale-110 hover:z-10 relative
+                                                                ${shift.color} 
+                                                                ${shift.id === 'LEAVE' || shift.id === 'NORMAL' ? 'rounded-md' : 'rounded-full'} 
+                                                            `} style={{borderRadius: shift.id.includes('ROTATION') ? '50%' : '8px'}}>
+                                                                {shiftLabel}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="w-full h-10 flex items-center justify-center opacity-0 hover:opacity-30">
+                                                                <div className="w-1.5 h-1.5 bg-stone-300 rounded-full"></div>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Cell Menu Modal */}
+                    {activeCell && (
+                        <div 
+                            className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                            onClick={() => setActiveCell(null)}
+                        >
+                            <div 
+                                className="bg-white rounded-xl shadow-xl p-4 w-full max-w-sm border-2 border-slate-800 animate-in zoom-in-95 duration-200"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-200">
+                                    <div className="flex flex-col">
+                                        <span className="text-xs font-bold text-slate-400">當日排班設定</span>
+                                        <span className="text-xl font-black text-slate-800">
+                                            {activeCell.user} <span className="text-slate-400 mx-1">/</span> {activeCell.dateStr}
+                                        </span>
+                                    </div>
+                                    <button onClick={() => setActiveCell(null)} className="p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100">
+                                        <XIcon size={24} />
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-3 gap-3 mb-4">
+                                    {Object.values(SHIFT_TYPES).map(type => (
+                                        <button
+                                            key={type.id}
+                                            onClick={() => applyShiftFromModal(type.id)}
+                                            className={`
+                                                flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all btn-press
+                                                ${activeCell.currentShift === type.id 
+                                                ? 'border-slate-800 bg-slate-50 ring-2 ring-slate-800 ring-offset-1' 
+                                                : 'border-slate-200 bg-white hover:border-slate-400'}
+                                            `}
+                                        >
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl mb-1 ${type.color.split(' ')[0]} text-white`}>
+                                                {type.icon}
+                                            </div>
+                                            <span className="text-sm font-bold text-slate-700">{type.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex gap-3 pt-2 border-t border-slate-200">
+                                    <button
+                                        onClick={() => applyShiftFromModal('ERASER')}
+                                        className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-slate-300 text-slate-600 font-bold hover:bg-slate-50 btn-press"
+                                    >
+                                        <Trash2 size={18} />
+                                        清除當日
+                                    </button>
+                                    <button
+                                        onClick={openAutoFillFromCell}
+                                        className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-slate-800 bg-yellow-100 text-slate-900 font-bold hover:bg-yellow-200 btn-press"
+                                    >
+                                        <Zap size={18} fill="currentColor" className="text-yellow-600" />
+                                        從此排班
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Auto Fill Modal */}
+                    {showAutoFill && (
+                        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                            <div className="bg-yellow-100 rounded-lg shadow-lg max-w-sm w-full p-6 border-2 border-slate-900 relative rotate-1">
+                                <button onClick={() => setShowAutoFill(false)} className="absolute -top-3 -right-3 bg-white border-2 border-slate-900 rounded-full p-1 hover:rotate-90 transition text-slate-900 shadow-sm">
+                                    <XIcon size={20} />
+                                </button>
+                                <h3 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2 border-b-2 border-slate-900 border-dashed pb-2">
+                                    <Zap className="text-orange-500 fill-current" />
+                                    自動排班魔法
+                                </h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-lg font-bold text-slate-700">對象與開始日</label>
+                                        <div className="p-3 bg-white border-2 border-slate-400 rounded-lg flex justify-between items-center">
+                                            <span className="font-bold text-xl text-slate-800">{targetUser}</span>
+                                            <span className="text-sm font-bold text-slate-500">{autoStartDate} 起</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-lg font-bold text-slate-700">規則是？</label>
+                                        <div className="mt-1 grid grid-cols-1 gap-2">
+                                            <button
+                                                onClick={() => { setAutoRule('4-2'); setAutoShiftType('ROTATION_A'); }}
+                                                className={`p-3 rounded-lg border-2 text-left transition-all flex items-center gap-3 btn-press
+                                                    ${autoRule === '4-2' ? 'border-orange-600 bg-orange-100 text-slate-900' : 'border-slate-300 bg-white text-slate-500'}
+                                                `}
+                                            >
+                                                <div className="font-bold text-lg">四班二輪</div>
+                                                <div className="text-sm font-bold bg-white px-2 rounded border border-slate-300">做2休2</div>
+                                            </button>
+                                            <button
+                                                onClick={() => { setAutoRule('week-night'); setAutoShiftType('EVE_WEEKDAY'); }}
+                                                className={`p-3 rounded-lg border-2 text-left transition-all flex items-center gap-3 btn-press
+                                                    ${autoRule === 'week-night' ? 'border-violet-600 bg-violet-100 text-slate-900' : 'border-slate-300 bg-white text-slate-500'}
+                                                `}
+                                            >
+                                                <div className="font-bold text-lg">平日小夜</div>
+                                                <div className="text-sm font-bold bg-white px-2 rounded border border-slate-300">週六休</div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 p-4 bg-white/50 rounded-lg border-2 border-slate-300 border-dashed">
+                                        {autoRule === '4-2' && (
+                                            <div className="animate-in fade-in slide-in-from-top-2 space-y-3">
+                                                <div>
+                                                    <label className="text-lg font-bold text-slate-700 block mb-1">幾個回合？</label>
+                                                    <div className="flex items-center gap-2">
+                                                        <input 
+                                                            type="number" min="1" max="50" 
+                                                            value={autoRounds} 
+                                                            onChange={e => setAutoRounds(Number(e.target.value))}
+                                                            className="w-20 bg-white border-2 border-slate-400 rounded p-1 text-center font-bold text-2xl text-slate-800 outline-none focus:border-slate-900"
+                                                        />
+                                                        <span className="text-lg font-bold text-slate-500">= <span className="text-slate-800">{autoRounds * 4}</span> 天</span>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-lg font-bold text-slate-700 block mb-1">班別</label>
+                                                    <div className="flex gap-2">
+                                                        <button onClick={() => setAutoShiftType('ROTATION_A')} className={`flex-1 py-2 rounded-lg text-lg font-bold border-2 btn-press ${autoShiftType === 'ROTATION_A' ? 'bg-orange-500 text-white border-orange-700' : 'bg-white text-slate-500 border-slate-300'}`}>A班</button>
+                                                        <button onClick={() => setAutoShiftType('ROTATION_B')} className={`flex-1 py-2 rounded-lg text-lg font-bold border-2 btn-press ${autoShiftType === 'ROTATION_B' ? 'bg-teal-500 text-white border-teal-700' : 'bg-white text-slate-500 border-slate-300'}`}>B班</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {autoRule === 'week-night' && (
+                                            <div className="animate-in fade-in slide-in-from-top-2">
+                                                <label className="text-lg font-bold text-slate-700 block mb-1">持續幾週？</label>
+                                                <div className="flex items-center gap-2">
+                                                    <input 
+                                                        type="number" min="1" max="52" 
+                                                        value={autoWeeksDuration} 
+                                                        onChange={e => setAutoWeeksDuration(Number(e.target.value))}
+                                                        className="w-20 bg-white border-2 border-slate-400 rounded p-1 text-center font-bold text-2xl text-slate-800"
+                                                    />
+                                                    <span className="text-lg font-bold text-slate-500">週</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="mt-6 flex gap-3">
+                                    <button onClick={() => setShowAutoFill(false)} className="flex-1 py-3 rounded-lg font-bold border-2 border-slate-400 text-slate-500 hover:bg-slate-100 transition btn-press">算了吧</button>
+                                    <button onClick={runAutoFill} className="flex-1 py-3 rounded-lg font-bold border-2 border-slate-800 bg-slate-800 text-white hover:bg-slate-700 btn-press transition">寫入！</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Confirm Modal */}
+                    {confirmModal.show && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                            <div className="bg-white rounded-lg shadow-lg max-w-sm w-full p-6 border-2 border-slate-800 animate-in zoom-in-95 duration-200 -rotate-1">
+                                <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 border-2 border-slate-800 ${confirmModal.isDangerous ? 'bg-red-100 text-red-500' : 'bg-blue-100 text-blue-500'}`}>
+                                    <AlertTriangle size={30} />
+                                </div>
+                                <h3 className="text-2xl font-bold text-slate-800 mb-2">{confirmModal.title}</h3>
+                                <p className="text-lg text-slate-600 mb-8 leading-relaxed">{confirmModal.msg}</p>
+                                <div className="flex gap-3">
+                                    <button onClick={() => setConfirmModal({ show: false })} className="flex-1 py-3 rounded-lg border-2 border-slate-300 text-slate-600 font-bold hover:bg-slate-50 transition btn-press">取消</button>
+                                    <button onClick={confirmModal.action} className={`flex-1 py-3 rounded-lg text-white font-bold border-2 border-slate-800 btn-press transition ${confirmModal.isDangerous ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'}`}>確定</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </React.Fragment>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ShiftScheduleMatrix />);
+    </script>
+</body>
+</html>
