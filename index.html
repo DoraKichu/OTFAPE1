@@ -21,7 +21,6 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // 將 Firebase 模組掛載到 window
         window.Firebase = { 
             initializeApp, 
             getAuth, 
@@ -38,7 +37,6 @@
     </script>
 
     <style>
-        /* 系統預設字體 */
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
             -webkit-font-smoothing: antialiased;
@@ -46,30 +44,18 @@
             user-select: none;
             -webkit-user-select: none;
         }
-
-        /* 背景紋理 */
         .paper-texture {
             background-color: #FEF9E7;
             background-image: radial-gradient(#E5E0C8 1px, transparent 1px);
             background-size: 20px 20px;
         }
-
-        /* 隱藏捲軸但保留功能 */
-        .hide-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .hide-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-
-        .btn-press:active {
-            transform: translateY(1px);
-        }
-        
-        th, td {
-            vertical-align: middle;
-        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .btn-press:active { transform: translateY(1px); }
+        th, td { vertical-align: middle; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        .cursor-wait { cursor: wait; opacity: 0.7; }
     </style>
 </head>
 <body class="paper-texture h-screen overflow-hidden text-slate-700">
@@ -80,9 +66,7 @@
         const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, onSnapshot, collection } = window.Firebase;
 
         // --- SVG Icons ---
-        const IconBase = ({ children, size = 20, className = "", ...props }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>
-        );
+        const IconBase = ({ children, size = 20, className = "", ...props }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>);
         const ChevronLeft = (props) => <IconBase {...props}><path d="m15 18-6-6 6-6"/></IconBase>;
         const ChevronRight = (props) => <IconBase {...props}><path d="m9 18 6-6-6-6"/></IconBase>;
         const Zap = (props) => <IconBase {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></IconBase>;
@@ -93,9 +77,11 @@
         const CalendarIcon = (props) => <IconBase {...props}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></IconBase>;
         const Eraser = (props) => <IconBase {...props}><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></IconBase>;
         const Hand = (props) => <IconBase {...props}><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a9 9 0 0 1 3.24-14.22"/></IconBase>;
+        const SaveIcon = (props) => <IconBase {...props}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></IconBase>;
+        const LogOutIcon = (props) => <IconBase {...props}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></IconBase>;
+        const UserIcon = (props) => <IconBase {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></IconBase>;
 
         // --- Firebase Configuration ---
-        // 使用您提供的真實金鑰 (otfape1)
         const firebaseConfig = {
             apiKey: "AIzaSyAQcIBp-giqjuOxE5D7EjelLnIpimFYDpk",
             authDomain: "otfape1.firebaseapp.com",
@@ -124,13 +110,20 @@
         }
 
         // --- CONSTANTS ---
-        const USERS = [
-            '周哲維', '陳泓廷', '王泓凱', '游佳憲', '陳嘉軒', 
-            '陳浩霖', '趙婉卉', '張皓翔', '翁子涵', '林明儒'
+        const USER_LIST = [
+            { id: 'v02455', name: '周哲維' },
+            { id: 'v02457', name: '陳泓廷' },
+            { id: 'v03111', name: '王泓凱' },
+            { id: 'v03282', name: '游佳憲' },
+            { id: 'v03369', name: '陳嘉軒' },
+            { id: 'v03370', name: '陳浩霖' },
+            { id: 'v03735', name: '趙婉卉' },
+            { id: 'v04151', name: '張皓翔' },
+            { id: 'v04457', name: '翁子涵' },
+            { id: 'v04463', name: '林明儒' }
         ];
 
         const SHIFT_TYPES = {
-            NORMAL: { id: 'NORMAL', name: '常日', time: '08:30-17:30', color: 'bg-blue-600 text-white border-blue-800', icon: '☀️' },
             EVE_WEEKDAY: { id: 'EVE_WEEKDAY', name: '平日夜', time: '15:00-24:00', color: 'bg-violet-700 text-white border-violet-900', icon: '🌙' },
             EVE_WEEKEND: { id: 'EVE_WEEKEND', name: '假日夜', time: '15:00-24:00', color: 'bg-pink-600 text-white border-pink-800', icon: '✨' },
             ROTATION_A: { id: 'ROTATION_A', name: 'A班', time: '07:20-19:20', color: 'bg-orange-500 text-white border-orange-700', icon: '🅰️' },
@@ -189,26 +182,80 @@
             return shift.name[0];
         };
 
+        // --- LOGIN COMPONENT ---
+        function LoginScreen({ onLogin }) {
+            const [inputId, setInputId] = useState('');
+            const [error, setError] = useState('');
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                const user = USER_LIST.find(u => u.id.toLowerCase() === inputId.toLowerCase());
+                if (user) {
+                    onLogin(user);
+                } else {
+                    setError('工號錯誤，請重新輸入 (例如 v03111)');
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 paper-texture">
+                    <div className="bg-white p-8 rounded-2xl shadow-xl border-4 border-slate-800 w-full max-w-sm animate-fade-in text-center">
+                        <div className="w-20 h-20 bg-yellow-300 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-slate-800 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+                            <UserIcon size={40} className="text-slate-800" />
+                        </div>
+                        <h2 className="text-2xl font-black text-slate-800 mb-2">班表手帳登入</h2>
+                        <p className="text-slate-500 mb-6 text-sm">請輸入您的 6 碼工號以開始使用</p>
+                        
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            <input 
+                                type="text" 
+                                placeholder="工號 (例如: v03111)"
+                                value={inputId}
+                                onChange={(e) => {
+                                    setInputId(e.target.value);
+                                    setError('');
+                                }}
+                                className="w-full text-center text-xl font-bold p-3 rounded-xl border-2 border-slate-300 focus:border-slate-800 focus:ring-0 outline-none transition-colors"
+                                maxLength={6}
+                            />
+                            {error && <p className="text-red-500 text-sm font-bold animate-pulse">{error}</p>}
+                            
+                            <button 
+                                type="submit"
+                                className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold text-lg hover:bg-slate-700 transition-transform active:scale-95 shadow-[4px_4px_0px_rgba(0,0,0,0.2)]"
+                            >
+                                進入系統
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
         // --- APP COMPONENT ---
         function ShiftScheduleMatrix() {
+            const [currentUser, setCurrentUser] = useState(null); 
             const [viewStartDate, setViewStartDate] = useState(() => {
                 const d = new Date();
                 d.setDate(d.getDate() - 7); 
                 return d;
             });
 
-            const [schedule, setSchedule] = useState({}); 
+            const [schedule, setSchedule] = useState({});
+            const [lastModifiedInfo, setLastModifiedInfo] = useState(null); 
             const [selectedTool, setSelectedTool] = useState(null); 
             const scrollRef = useRef(null);
-
-            // Modals
             const [activeCell, setActiveCell] = useState(null); 
             const [showAutoFill, setShowAutoFill] = useState(false);
             const [confirmModal, setConfirmModal] = useState({ show: false, title: '', msg: '', action: null, isDangerous: false });
-            const [user, setUser] = useState(null);
+            const [logoutModal, setLogoutModal] = useState(false);
+            
+            const [firebaseUser, setFirebaseUser] = useState(null);
+            const [isSaving, setIsSaving] = useState(false); 
+            const [isConnected, setIsConnected] = useState(false);
+            const [permissionError, setPermissionError] = useState(false); // 新增：權限錯誤狀態
 
-            // AutoFill Params
-            const [targetUser, setTargetUser] = useState(USERS[0]);
+            const [targetUser, setTargetUser] = useState(USER_LIST[0].name);
             const [autoStartDate, setAutoStartDate] = useState(getDateStr(new Date()));
             const [autoRule, setAutoRule] = useState('4-2');
             const [autoShiftType, setAutoShiftType] = useState('ROTATION_A');
@@ -223,51 +270,116 @@
                         await signInAnonymously(auth);
                     } catch (error) {
                         console.error("Auth failed:", error);
-                        // 防呆提示
                         if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed') {
-                            alert("⚠️ 請注意：\n您尚未在 Firebase 後台開啟「匿名登入 (Anonymous)」功能。\n請至 Firebase Console -> Authentication -> Sign-in method 開啟它，否則無法儲存資料！");
+                            alert("⚠️ 請注意：請至 Firebase Console 開啟「匿名登入」功能！");
                         }
                     }
                 };
                 initAuth();
-                const unsubscribe = onAuthStateChanged(auth, setUser);
+                const unsubscribe = onAuthStateChanged(auth, (user) => {
+                    setFirebaseUser(user);
+                    setIsConnected(!!user);
+                });
                 return () => unsubscribe();
             }, []);
 
             useEffect(() => {
                 if (!isConfigured) return;
-                if (!user || !db) return;
+                if (!firebaseUser || !db) return;
                 
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'shift_schedule_team', 'shared_matrix');
                 
                 const unsubscribe = onSnapshot(docRef, (docSnap) => {
+                    setPermissionError(false); // Reset error
                     if (docSnap.exists()) {
-                        setSchedule(docSnap.data().schedule || {});
+                        const data = docSnap.data();
+                        setSchedule(data.schedule || {});
+                        if (data.lastModifiedBy && data.lastModifiedAt) {
+                            setLastModifiedInfo({
+                                by: data.lastModifiedBy,
+                                at: data.lastModifiedAt
+                            });
+                        }
                     } else {
                         setDoc(docRef, { schedule: {} }, { merge: true });
                     }
                 }, (error) => {
                     console.error("Sync error:", error);
+                    setIsConnected(false);
+                    if (error.code === 'permission-denied') {
+                        setPermissionError(true);
+                    }
                 });
 
                 return () => unsubscribe();
-            }, [user]);
+            }, [firebaseUser]);
 
-            // Save to DB Helper
-            const saveToDb = async (newSchedule) => {
-                if (!isConfigured) {
-                    setSchedule(newSchedule); 
-                    return;
-                }
-                if (!db || !user) return;
+            // Save to DB Helper (Robust with Timeout)
+            const saveToDb = (newSchedule, isManual = false) => {
+                return new Promise(async (resolve) => {
+                    if (!isConfigured) {
+                        setSchedule(newSchedule);
+                        if (isManual) alert("⚠️ 尚未設定資料庫，資料僅暫存於本機。");
+                        resolve(true);
+                        return;
+                    }
 
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'shift_schedule_team', 'shared_matrix');
-                try {
-                    await setDoc(docRef, { schedule: newSchedule }, { merge: true });
-                } catch (e) {
-                    console.error("Save error:", e);
-                    alert("儲存失敗，請檢查網路連線");
-                }
+                    if (!auth || !firebaseUser) {
+                        if (isManual) alert("⚠️ 尚未連線到雲端 (身分驗證未完成)。");
+                        signInAnonymously(auth).catch(e => console.error(e));
+                        resolve(false);
+                        return;
+                    }
+                    
+                    if (!db) {
+                         if (isManual) alert("⚠️ 資料庫未初始化。");
+                         resolve(false);
+                         return;
+                    }
+
+                    setIsSaving(true);
+                    setPermissionError(false); // Reset error before save
+                    
+                    const timeoutPromise = new Promise(r => setTimeout(() => r('TIMEOUT'), 15000)); 
+                    
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'shift_schedule_team', 'shared_matrix');
+                    const now = new Date();
+                    const timeString = `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                    
+                    const dataToSave = { 
+                        schedule: newSchedule,
+                        lastModifiedBy: currentUser ? currentUser.name : 'Unknown',
+                        lastModifiedAt: timeString
+                    };
+
+                    try {
+                        const result = await Promise.race([
+                            setDoc(docRef, dataToSave, { merge: true }),
+                            timeoutPromise
+                        ]);
+
+                        if (result === 'TIMEOUT') {
+                            throw new Error("Save timeout");
+                        }
+
+                        setSchedule(newSchedule);
+                        if (isManual) alert("✅ 雲端存檔成功！");
+                        resolve(true);
+                    } catch (e) {
+                        console.error("Save error:", e);
+                        if (e.code === 'permission-denied') {
+                            setPermissionError(true); // Show banner
+                            if (isManual) alert("⚠️ 權限不足 (Permission Denied)。\n請檢查 Firebase Console 的 Firestore Rules 設定。");
+                        } else if (e.message === "Save timeout") {
+                             if (isManual) alert("⚠️ 連線逾時 (超過 15 秒)。\n請檢查網路或確認 Firestore 已建立。");
+                        } else {
+                             if (isManual) alert(`⚠️ 儲存失敗: ${e.message}`);
+                        }
+                        resolve(false);
+                    } finally {
+                        setIsSaving(false);
+                    }
+                });
             };
 
             // Handlers
@@ -275,22 +387,47 @@
             const nextPeriod = () => setViewStartDate(prev => { const d = new Date(prev); d.setDate(d.getDate() + 14); return d; });
             const goToToday = () => { const d = new Date(); d.setDate(d.getDate() - 7); setViewStartDate(d); };
 
-            const handleCellClick = (user, dateStr) => {
+            const handleLogout = () => {
+                setLogoutModal(true);
+            };
+
+            const confirmLogoutAndSave = async () => {
+                const success = await saveToDb(schedule, false);
+                if (success) {
+                    setCurrentUser(null);
+                    setSelectedTool(null);
+                    setLogoutModal(false);
+                } else {
+                    if (confirm("⚠️ 存檔失敗或逾時。\n\n可能原因：\n1. 網路連線不穩\n2. Firestore 權限未開\n\n確定要強制登出嗎？(這可能會遺失剛剛的變更)")) {
+                        setCurrentUser(null);
+                        setSelectedTool(null);
+                        setLogoutModal(false);
+                    }
+                }
+            };
+
+            const confirmLogoutOnly = () => {
+                setCurrentUser(null);
+                setSelectedTool(null);
+                setLogoutModal(false);
+            };
+
+            const handleCellClick = (userName, dateStr) => {
                 if (!selectedTool) {
-                    const currentShift = schedule[user]?.[dateStr];
-                    setActiveCell({ user, dateStr, currentShift });
+                    const currentShift = schedule[userName]?.[dateStr];
+                    setActiveCell({ user: userName, dateStr, currentShift });
                     return;
                 }
 
                 const newSchedule = { ...schedule };
-                const userSchedule = { ...(newSchedule[user] || {}) };
+                const userSchedule = { ...(newSchedule[userName] || {}) };
                 
                 if (selectedTool === 'ERASER') {
                     delete userSchedule[dateStr];
                 } else {
                     userSchedule[dateStr] = selectedTool;
                 }
-                newSchedule[user] = userSchedule;
+                newSchedule[userName] = userSchedule;
                 saveToDb(newSchedule);
             };
 
@@ -392,8 +529,27 @@
                 return arr;
             })();
 
+            if (!currentUser) {
+                return <LoginScreen onLogin={setCurrentUser} />;
+            }
+
             return (
                 <React.Fragment>
+                    {/* 權限錯誤提示Banner */}
+                    {permissionError && (
+                        <div className="bg-red-600 text-white p-4 text-center font-bold shadow-lg z-50 fixed top-0 left-0 w-full flex flex-col items-center gap-2 animate-fade-in">
+                            <span>🔒 資料庫存取被拒 (Permission Denied)</span>
+                            <span className="text-sm font-normal opacity-90">請至 Firebase Console &gt; Firestore Database &gt; Rules 分頁</span>
+                            <span className="text-sm bg-red-800 px-2 py-1 rounded font-mono">allow read, write: if true;</span>
+                            <button 
+                                onClick={() => window.location.reload()}
+                                className="mt-2 bg-white text-red-600 px-4 py-1 rounded-full text-sm font-bold hover:bg-red-50 transition"
+                            >
+                                ↻ 我已修正，重新載入
+                            </button>
+                        </div>
+                    )}
+
                     {/* 未設定 Firebase 的提示 */}
                     {!isConfigured && (
                         <div className="bg-red-500 text-white text-center text-xs py-1">
@@ -406,6 +562,41 @@
                         <div className="w-full overflow-x-auto hide-scrollbar py-3 px-2">
                             <div className="flex items-center gap-3 min-w-max">
                                 
+                                {/* 標題 + 連線狀態 */}
+                                <div className="flex flex-col mr-2">
+                                    <div className="flex items-center gap-2">
+                                        <h1 className="text-2xl font-black text-slate-800 tracking-wider">班表手帳</h1>
+                                        {/* 連線燈號 */}
+                                        <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]'}`} title={isConnected ? "已連線至雲端" : "未連線"}></div>
+                                    </div>
+                                </div>
+
+                                {/* 0. 左側按鈕區 (存檔 + 登出) */}
+                                <div className="flex gap-2 border-r-2 border-slate-200 pr-3 mr-1">
+                                    <button 
+                                        onClick={() => saveToDb(schedule, true)} 
+                                        disabled={isSaving}
+                                        className={`group relative flex flex-col items-center justify-center p-2 text-white rounded-xl border-2 btn-press active:scale-95 transition shadow-[3px_3px_0px_rgba(21,128,61,1)]
+                                            ${isSaving ? 'bg-gray-400 border-gray-500 cursor-wait' : 'bg-green-500 border-green-700'}
+                                        `}
+                                        title="手動存檔"
+                                    >
+                                        <SaveIcon size={20} />
+                                        <span className="text-[10px] font-bold mt-0.5">
+                                            {isSaving ? '...' : '存檔'}
+                                        </span>
+                                    </button>
+
+                                    <button 
+                                        onClick={handleLogout} 
+                                        className="group relative flex flex-col items-center justify-center p-2 bg-slate-100 text-slate-600 rounded-xl border-2 border-slate-400 btn-press active:scale-95 transition shadow-[3px_3px_0px_rgba(148,163,184,1)] hover:bg-red-50 hover:text-red-600 hover:border-red-400 hover:shadow-[3px_3px_0px_rgba(239,68,68,1)]"
+                                        title="登出系統"
+                                    >
+                                        <LogOutIcon size={20} />
+                                        <span className="text-[10px] font-bold mt-0.5">登出</span>
+                                    </button>
+                                </div>
+
                                 {/* 1. 日期導航 */}
                                 <div className="flex items-center bg-white border-2 border-slate-800 rounded-xl px-1 py-1">
                                     <button onClick={prevPeriod} className="p-2 hover:bg-slate-100 rounded-lg transition"><ChevronLeft size={20}/></button>
@@ -444,7 +635,7 @@
                                     )}
                                 </button>
 
-                                {/* 4. 班別工具 */}
+                                {/* 4. 班別工具 (不含常日) */}
                                 {Object.values(SHIFT_TYPES).map(type => (
                                     <button
                                         key={type.id}
@@ -466,6 +657,19 @@
                                         )}
                                     </button>
                                 ))}
+
+                                {/* 右側資訊：最後編輯 */}
+                                <div className="ml-auto pl-4 border-l-2 border-slate-200 flex flex-col items-end">
+                                    <div className="flex items-center gap-1 text-sm font-bold text-slate-800">
+                                        <span className="bg-yellow-200 px-1 rounded text-xs">Hi</span>
+                                        {currentUser.name}
+                                    </div>
+                                    {lastModifiedInfo && (
+                                        <div className="text-[10px] text-slate-400 whitespace-nowrap">
+                                            Update: {lastModifiedInfo.by} {lastModifiedInfo.at}
+                                        </div>
+                                    )}
+                                </div>
 
                             </div>
                         </div>
@@ -509,15 +713,16 @@
                                             人力配置
                                         </th>
                                         {days.map(day => {
-                                            const count = USERS.reduce((acc, user) => {
-                                                const s = schedule[user]?.[day.dateStr];
-                                                return (s && s !== 'LEAVE' && s !== 'ERASER') ? acc + 1 : acc;
-                                            }, 0);
+                                            let currentCount = 0;
+                                            USER_LIST.forEach(u => {
+                                                const s = schedule[u.name]?.[day.dateStr];
+                                                if (s && s !== 'LEAVE' && s !== 'ERASER') currentCount++;
+                                            });
                                             
                                             return (
                                                 <th key={`sum-${day.dateStr}`} className="border-r border-stone-300 text-center py-1 bg-stone-100">
-                                                    <span className={`text-lg font-bold ${count > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
-                                                        {count || '-'}
+                                                    <span className={`text-lg font-bold ${currentCount > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
+                                                        {currentCount || '-'}
                                                     </span>
                                                 </th>
                                             );
@@ -525,15 +730,15 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {USERS.map((user, idx) => (
-                                        <tr key={user} className="group/row bg-white hover:bg-yellow-50/50 transition-colors border-b border-stone-200">
+                                    {USER_LIST.map((userData, idx) => (
+                                        <tr key={userData.id} className="group/row bg-white hover:bg-yellow-50/50 transition-colors border-b border-stone-200">
                                             <td className="sticky left-0 z-10 bg-white group-hover/row:bg-yellow-50/50 border-r-2 border-stone-300 p-0 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                                                 <div className="px-3 py-3 h-full group/namecell min-w-[140px] flex items-center justify-between">
                                                     <span className="font-bold text-slate-800 text-lg whitespace-nowrap overflow-hidden tracking-wide text-center flex-1">
-                                                        {user}
+                                                        {userData.name}
                                                     </span>
                                                     <button 
-                                                        onClick={(e) => { e.stopPropagation(); confirmClearUser(user); }}
+                                                        onClick={(e) => { e.stopPropagation(); confirmClearUser(userData.name); }}
                                                         className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-full transition-all opacity-0 group-hover/namecell:opacity-100 ml-1"
                                                         title="擦掉紀錄"
                                                     >
@@ -542,15 +747,15 @@
                                                 </div>
                                             </td>
                                             {days.map(day => {
-                                                const shiftId = schedule[user]?.[day.dateStr];
+                                                const shiftId = schedule[userData.name]?.[day.dateStr];
                                                 const shift = shiftId && SHIFT_TYPES[shiftId] ? SHIFT_TYPES[shiftId] : null;
                                                 const shiftLabel = getShiftLabel(shift);
                                                 const bgClass = day.holiday ? 'bg-sky-50/30' : (day.isWeekend ? 'bg-rose-50/30' : '');
 
                                                 return (
                                                     <td 
-                                                        key={`${user}-${day.dateStr}`}
-                                                        onClick={() => handleCellClick(user, day.dateStr)}
+                                                        key={`${userData.name}-${day.dateStr}`}
+                                                        onClick={() => handleCellClick(userData.name, day.dateStr)}
                                                         className={`
                                                             border-r border-stone-100 text-center cursor-pointer relative p-1 align-middle
                                                             hover:bg-slate-100/50 active:bg-slate-200/50
@@ -730,7 +935,44 @@
                         </div>
                     )}
 
-                    {/* Confirm Modal */}
+                    {/* Logout Modal */}
+                    {logoutModal && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                            <div className="bg-white rounded-lg shadow-lg max-w-sm w-full p-6 border-2 border-slate-800 animate-in zoom-in-95 duration-200">
+                                <div className="w-14 h-14 bg-yellow-200 rounded-full flex items-center justify-center mb-4 border-2 border-slate-800 mx-auto">
+                                    <LogOutIcon size={30} className="text-slate-800" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-slate-800 mb-2 text-center">準備登出</h3>
+                                <p className="text-lg text-slate-600 mb-8 text-center">您希望在登出前先儲存目前的變更嗎？</p>
+                                <div className="flex flex-col gap-3">
+                                    <button 
+                                        onClick={confirmLogoutAndSave} 
+                                        disabled={isSaving}
+                                        className={`w-full py-3 bg-green-500 text-white rounded-xl font-bold text-lg border-2 border-green-700 shadow-[3px_3px_0px_rgba(21,128,61,1)] btn-press transition flex items-center justify-center gap-2
+                                            ${isSaving ? 'opacity-70 cursor-wait' : ''}
+                                        `}
+                                    >
+                                        <SaveIcon size={20} /> 
+                                        {isSaving ? '正在存檔並登出...' : '存檔並登出'}
+                                    </button>
+                                    <button 
+                                        onClick={() => setLogoutModal(false)} 
+                                        className="w-full py-3 bg-white text-slate-600 rounded-xl font-bold text-lg border-2 border-slate-300 hover:bg-slate-50 btn-press transition"
+                                    >
+                                        繼續編輯
+                                    </button>
+                                    <button 
+                                        onClick={confirmLogoutOnly} 
+                                        className="mt-2 text-sm text-red-400 hover:text-red-600 font-bold underline decoration-2 underline-offset-4"
+                                    >
+                                        直接登出 (不存檔)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Confirm Modal (for both Clear and Clear User) */}
                     {confirmModal.show && (
                         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
                             <div className="bg-white rounded-lg shadow-lg max-w-sm w-full p-6 border-2 border-slate-800 animate-in zoom-in-95 duration-200 -rotate-1">
