@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>班表手帳 2025-2026 (雲端同步版 v3.1)</title>
+    <title>班表手帳 2025-2026 (雲端同步版 v3.5)</title>
     
     <!-- 引入 React 和 ReactDOM -->
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -14,6 +14,9 @@
     
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- 引入 SheetJS (Excel 處理) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 
     <!-- Firebase SDKs -->
     <script type="module">
@@ -65,7 +68,7 @@
     <div id="root" class="h-full flex flex-col"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useMemo } = React;
         const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, getDoc, setDoc, onSnapshot, collection } = window.Firebase;
 
         // --- SVG Icons ---
@@ -74,18 +77,17 @@
         const ChevronRight = (props) => <IconBase {...props}><path d="m9 18 6-6-6-6"/></IconBase>;
         const Zap = (props) => <IconBase {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></IconBase>;
         const Trash2 = (props) => <IconBase {...props}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconBase>;
-        const RotateCcw = (props) => <IconBase {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></IconBase>;
         const AlertTriangle = (props) => <IconBase {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></IconBase>;
         const XIcon = (props) => <IconBase {...props}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconBase>;
         const CalendarIcon = (props) => <IconBase {...props}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></IconBase>;
         const Eraser = (props) => <IconBase {...props}><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></IconBase>;
-        const Hand = (props) => <IconBase {...props}><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a9 9 0 0 1 3.24-14.22"/></IconBase>;
         const SaveIcon = (props) => <IconBase {...props}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></IconBase>;
         const LogOutIcon = (props) => <IconBase {...props}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></IconBase>;
         const UserIcon = (props) => <IconBase {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></IconBase>;
         const InfoIcon = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></IconBase>;
         const CheckIcon = (props) => <IconBase {...props}><polyline points="20 6 9 17 4 12"/></IconBase>;
-        const CalendarPlusIcon = (props) => <IconBase {...props}><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M10 16h4"/><path d="M12 14v4"/></IconBase>;
+        const UploadIcon = (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></IconBase>;
+        const DownloadIcon = (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconBase>;
 
         // --- Firebase Configuration ---
         const firebaseConfig = {
@@ -118,21 +120,15 @@
         const USER_LIST = [
             { id: 'v02455', name: '周哲維', type: 'NORMAL' },
             { id: 'v02457', name: '陳泓廷', type: 'NORMAL' },
-            { id: 'v03111', name: '王泓凱', type: 'ROTATION' },
-            { id: 'v03282', name: '游佳憲', type: 'ROTATION' },
-            { id: 'v03369', name: '陳嘉軒', type: 'ROTATION' },
-            { id: 'v03370', name: '陳浩霖', type: 'ROTATION' },
-            { id: 'v03735', name: '趙婉卉', type: 'ROTATION' },
-            { id: 'v04151', name: '張皓翔', type: 'ROTATION' },
-            { id: 'v04457', name: '翁子涵', type: 'ROTATION' },
-            { id: 'v04463', name: '林明儒', type: 'ROTATION' }
+            { id: 'v03111', name: '王泓凱', type: 'ROTATION' }, // B組 No.1
+            { id: 'v03369', name: '陳嘉軒', type: 'ROTATION' }, // A組 No.1
+            { id: 'v04151', name: '張皓翔', type: 'ROTATION' }, // B組 No.2
+            { id: 'v03370', name: '陳浩霖', type: 'ROTATION' }, // A組 No.2
+            { id: 'v04457', name: '翁子涵', type: 'ROTATION' }, // B組 No.3
+            { id: 'v03735', name: '趙婉卉', type: 'ROTATION' }, // A組 No.3
+            { id: 'v03282', name: '游佳憲', type: 'ROTATION' }, // B組 No.4
+            { id: 'v04463', name: '林明儒', type: 'ROTATION' }  // A組 No.4
         ];
-
-        // 2026 預排用
-        const ROTATION_GROUP_A = ['陳嘉軒', '陳浩霖', '趙婉卉', '林明儒'];
-        const ROTATION_GROUP_B = ['王泓凱', '張皓翔', '翁子涵', '游佳憲'];
-        const WEEKNIGHT_ORDER = ['王泓凱', '陳嘉軒', '張皓翔', '陳浩霖', '翁子涵', '趙婉卉', '游佳憲', '林明儒'];
-        const HOLIDAY_NIGHT_ORDER = ['王泓凱', '陳嘉軒', '張皓翔', '陳浩霖', '翁子涵', '趙婉卉', '游佳憲', '林明儒'];
 
         const SHIFT_TYPES = {
             NORMAL: { id: 'NORMAL', name: '常日', time: '08:30-17:30', color: 'bg-white border border-slate-200 shadow-sm text-slate-800', icon: '☀️' },
@@ -196,7 +192,18 @@
             return shift.name[0];
         };
 
-        // --- Helper: Calculate Payday for a month ---
+        const getShiftName = (shiftId) => {
+             if (!shiftId) return "";
+             return SHIFT_TYPES[shiftId]?.name || shiftId;
+        };
+
+        const getShiftIdByName = (name) => {
+            for (const key in SHIFT_TYPES) {
+                if (SHIFT_TYPES[key].name === name) return key;
+            }
+            return null;
+        };
+
         const getPayday = (year, month) => {
             let d = new Date(year, month, 25);
             while (true) {
@@ -305,19 +312,21 @@
             const [showAutoFill, setShowAutoFill] = useState(false);
             const [confirmModal, setConfirmModal] = useState({ show: false, title: '', msg: '', action: null, isDangerous: false });
             const [showInfoModal, setShowInfoModal] = useState(false);
-            const [toast, setToast] = useState(null); 
+            const [toast, setToast] = useState(null);
+            const fileInputRef = useRef(null);
             
-            const [firebaseUser, setFirebaseUser] = useState(null);
-            const [isSaving, setIsSaving] = useState(false); 
-            const [isConnected, setIsConnected] = useState(false);
-            const [permissionError, setPermissionError] = useState(false);
-
+            // Settings for AutoFill
             const [targetUser, setTargetUser] = useState(USER_LIST[0].name);
             const [autoStartDate, setAutoStartDate] = useState(getDateStr(new Date()));
             const [autoRule, setAutoRule] = useState('4-2');
             const [autoShiftType, setAutoShiftType] = useState('ROTATION_A');
             const [autoRounds, setAutoRounds] = useState(8); 
             const [autoWeeksDuration, setAutoWeeksDuration] = useState(1);
+
+            const [firebaseUser, setFirebaseUser] = useState(null);
+            const [isSaving, setIsSaving] = useState(false); 
+            const [isConnected, setIsConnected] = useState(false);
+            const [permissionError, setPermissionError] = useState(false);
 
             const showToast = (message, type = 'info') => { setToast({ message, type }); };
 
@@ -390,22 +399,10 @@
                     };
 
                     try {
-                        // CRITICAL: If isManual is true, use setDoc WITHOUT merge (overwrite).
-                        // This ensures deletions are propagated.
-                        const setOptions = isManual ? {} : { merge: true };
-                        
-                        const result = await Promise.race([
-                            setDoc(docRef, dataToSave, setOptions), 
-                            timeoutPromise
-                        ]);
-
-                        if (result === 'TIMEOUT') {
-                            throw new Error("Save timeout");
-                        }
-
-                        setSchedule(newSchedule);
-                        setRotationCycles(newRotationCycles);
-                        setWeekNightCycles(newWeekNightCycles);
+                        const options = isManual ? {} : { merge: true };
+                        const result = await Promise.race([ setDoc(docRef, dataToSave, options), timeoutPromise ]);
+                        if (result === 'TIMEOUT') throw new Error("Save timeout");
+                        setSchedule(newSchedule); setRotationCycles(newRotationCycles); setWeekNightCycles(newWeekNightCycles);
                         if (isManual) showToast("儲存成功！", "success");
                         resolve(true);
                     } catch (e) {
@@ -418,22 +415,13 @@
                 });
             };
 
-            // Handlers
             const prevPeriod = () => setViewStartDate(prev => { const d = new Date(prev); d.setDate(d.getDate() - 14); return d; });
             const nextPeriod = () => setViewStartDate(prev => { const d = new Date(prev); d.setDate(d.getDate() + 14); return d; });
             const goToToday = () => { const d = new Date(); d.setDate(d.getDate() - 7); setViewStartDate(d); };
 
             const handleLogout = async () => {
-                const success = await saveToDb({ schedule, rotationCycles, weekNightCycles }, false);
-                if (success) {
-                    setCurrentUser(null);
-                    setSelectedTool(null);
-                } else {
-                    if (confirm("⚠️ 自動存檔失敗或逾時。\n確定要強制登出嗎？(未儲存的變更將會遺失)")) {
-                        setCurrentUser(null);
-                        setSelectedTool(null);
-                    }
-                }
+                await saveToDb({ schedule, rotationCycles, weekNightCycles }, false);
+                setCurrentUser(null); setSelectedTool(null);
             };
 
             const handleCellClick = (userName, dateStr) => {
@@ -509,7 +497,6 @@
                     const userCycles = newCycles[targetUser] || [];
                     userCycles.push({ start: autoStartDate, end: endDateStr });
                     newCycles[targetUser] = userCycles;
-
                     const totalDays = autoRounds * 4;
                     for (let i = 0; i < totalDays; i++) {
                         let d = new Date(start);
@@ -532,9 +519,7 @@
                     endLoop.setDate(start.getDate() + (autoWeeksDuration * 7));
                     while (current < endLoop) {
                         const day = current.getDay();
-                        if (day !== 6) { 
-                            userSch[getDateStr(current)] = 'EVE_WEEKDAY';
-                        }
+                        if (day !== 6) userSch[getDateStr(current)] = 'EVE_WEEKDAY';
                         current.setDate(current.getDate() + 1);
                     }
                     newSchedule[targetUser] = userSch;
@@ -564,7 +549,9 @@
                 });
             };
 
-            const days = (() => {
+            // Prepare Days Array with Month Headers logic
+            // We need to group by Month
+            const daysData = useMemo(() => {
                 const arr = [];
                 for (let i = 0; i < 30; i++) {
                     const date = new Date(viewStartDate);
@@ -574,93 +561,140 @@
                         date, dateStr, dayNum: date.getDate(),
                         dayOfWeek: ['日','一','二','三','四','五','六'][date.getDay()],
                         isWeekend: isWeekend(date),
-                        holiday: HOLIDAYS[dateStr]
+                        holiday: HOLIDAYS[dateStr],
+                        monthLabel: `${date.getFullYear()}年${date.getMonth()+1}月`
                     });
                 }
                 return arr;
-            })();
+            }, [viewStartDate]);
 
-            if (!currentUser) {
-                return <LoginScreen onLogin={setCurrentUser} />;
-            }
+            // Group days by month for the header
+            const monthGroups = useMemo(() => {
+                const groups = [];
+                if (daysData.length === 0) return groups;
+                
+                let currentMonth = daysData[0].monthLabel;
+                let count = 0;
+                
+                daysData.forEach(day => {
+                    if (day.monthLabel === currentMonth) {
+                        count++;
+                    } else {
+                        groups.push({ label: currentMonth, count });
+                        currentMonth = day.monthLabel;
+                        count = 1;
+                    }
+                });
+                groups.push({ label: currentMonth, count });
+                return groups;
+            }, [daysData]);
+
+
+            // --- Excel Export ---
+            const handleExport = () => {
+                if (!schedule) return;
+                const exportData = [];
+                const header = ['姓名', ...daysData.map(d => d.dateStr)];
+                exportData.push(header);
+                USER_LIST.forEach(user => {
+                    const row = [user.name];
+                    daysData.forEach(day => {
+                        const shiftId = schedule[user.name]?.[day.dateStr];
+                        if (shiftId) row.push(getShiftName(shiftId));
+                        else row.push(''); 
+                    });
+                    exportData.push(row);
+                });
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet(exportData);
+                XLSX.utils.book_append_sheet(wb, ws, "排班表");
+                XLSX.writeFile(wb, `排班表_${getDateStr(new Date())}.xlsx`);
+            };
+
+            const handleImportClick = () => { fileInputRef.current.click(); };
+            const handleImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    try {
+                        const bstr = evt.target.result;
+                        const wb = XLSX.read(bstr, { type: 'binary' });
+                        const wsName = wb.SheetNames[0];
+                        const ws = wb.Sheets[wsName];
+                        const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                        if (data.length < 2) { showToast("Excel 格式錯誤或無資料", "error"); return; }
+                        const headerRow = data[0];
+                        const newSchedule = { ...schedule };
+                        for (let i = 1; i < data.length; i++) {
+                            const row = data[i];
+                            const userName = row[0];
+                            const user = USER_LIST.find(u => u.name === userName);
+                            if (!user) continue; 
+                            const userSch = { ...(newSchedule[userName] || {}) };
+                            for (let j = 1; j < row.length; j++) {
+                                const dateStr = headerRow[j];
+                                const shiftName = row[j];
+                                if (dateStr && shiftName) {
+                                    const shiftId = getShiftIdByName(shiftName);
+                                    if (shiftId) userSch[dateStr] = shiftId;
+                                }
+                            }
+                            newSchedule[userName] = userSch;
+                        }
+                        saveToDb({ schedule: newSchedule });
+                        showToast("Excel 匯入成功！", "success");
+                    } catch (err) { console.error("Import Error:", err); showToast("匯入失敗，請檢查檔案格式", "error"); } finally { e.target.value = ''; }
+                };
+                reader.readAsBinaryString(file);
+            };
+
+            if (!currentUser) { return <LoginScreen onLogin={setCurrentUser} />; }
 
             return (
                 <React.Fragment>
-                    {/* Toast Container */}
+                    <input type="file" ref={fileInputRef} onChange={handleImport} accept=".xlsx, .xls" style={{ display: 'none' }} />
                     {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-
-                    {/* 權限錯誤提示Modal */}
-                    {permissionError && (
-                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-fade-in">
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border-l-8 border-red-500">
-                                <div className="flex items-center gap-3 mb-4 text-red-600">
-                                    <AlertTriangle size={32} />
-                                    <h3 className="text-xl font-black">資料庫權限不足</h3>
-                                </div>
-                                <p className="text-slate-600 mb-4 leading-relaxed">您的 Firebase Firestore 安全規則目前設為禁止寫入。<br/>請前往 Firebase Console 將規則修改為允許存取。</p>
-                                <div className="bg-slate-100 p-3 rounded font-mono text-xs text-slate-700 mb-6 border border-slate-300 overflow-x-auto">allow read, write: if true;</div>
-                                <button onClick={() => window.location.reload()} className="w-full py-3 bg-red-600 text-white rounded-xl font-bold shadow-lg hover:bg-red-700 transition">我已修正規則，重新載入</button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* 未設定 Firebase 的提示 */}
-                    {!isConfigured && <div className="bg-red-500 text-white text-center text-xs py-1">尚未設定 Firebase，資料將無法儲存。</div>}
 
                     {/* 頂部控制區 */}
                     <header className="z-30 flex-none bg-white/90 backdrop-blur-sm shadow-sm border-b-2 border-stone-200">
                         <div className="w-full overflow-x-auto hide-scrollbar py-3 px-2">
                             <div className="flex items-center gap-3 min-w-max">
-                                {/* 標題 + 連線狀態 */}
                                 <div className="flex flex-col mr-2 cursor-pointer" onClick={() => { if(!isConnected) showToast('尚未連線至雲端', 'error'); }}>
                                     <div className="flex items-center gap-2">
                                         <h1 className="text-2xl font-black text-slate-800 tracking-wider">班表手帳</h1>
                                         <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]'}`} title={isConnected ? "已連線至雲端" : "未連線"}></div>
                                     </div>
                                 </div>
-                                {/* 左側按鈕區 */}
                                 <div className="flex gap-2 border-r-2 border-slate-200 pr-3 mr-1">
                                     <button onClick={() => saveToDb({ schedule, rotationCycles, weekNightCycles }, true)} disabled={isSaving} className={`group relative flex flex-col items-center justify-center p-2 text-white rounded-xl border-2 btn-press active:scale-95 transition shadow-[3px_3px_0px_rgba(21,128,61,1)] ${isSaving ? 'bg-gray-400 border-gray-500 cursor-wait' : 'bg-green-500 border-green-700'}`} title="手動存檔">
-                                        <SaveIcon size={20} />
-                                        <span className="text-[10px] font-bold mt-0.5">{isSaving ? '...' : '存檔'}</span>
+                                        <SaveIcon size={20} /><span className="text-[10px] font-bold mt-0.5">{isSaving ? '...' : '存檔'}</span>
                                     </button>
                                     <button onClick={handleLogout} className="group relative flex flex-col items-center justify-center p-2 bg-slate-100 text-slate-600 rounded-xl border-2 border-slate-400 btn-press active:scale-95 transition shadow-[3px_3px_0px_rgba(148,163,184,1)] hover:bg-red-50 hover:text-red-600 hover:border-red-400 hover:shadow-[3px_3px_0px_rgba(239,68,68,1)]" title="登出系統">
-                                        <LogOutIcon size={20} />
-                                        <span className="text-[10px] font-bold mt-0.5">登出</span>
+                                        <LogOutIcon size={20} /><span className="text-[10px] font-bold mt-0.5">登出</span>
                                     </button>
                                 </div>
-                                {/* 日期導航 */}
                                 <div className="flex items-center bg-white border-2 border-slate-800 rounded-xl px-1 py-1">
                                     <button onClick={prevPeriod} className="p-2 hover:bg-slate-100 rounded-lg transition"><ChevronLeft size={20}/></button>
                                     <div className="px-3 font-black text-lg text-center text-slate-800 leading-tight min-w-[110px]">
-                                        {viewStartDate.getFullYear()}.<span className="text-2xl text-orange-600 ml-1">{viewStartDate.getMonth() + 1}</span>
-                                        <span className="text-xs text-slate-400 block -mt-1">{viewStartDate.getDate()}日起</span>
+                                        <span className="text-xs text-slate-400 block">Quick Nav</span>
                                     </div>
                                     <button onClick={nextPeriod} className="p-2 hover:bg-slate-100 rounded-lg transition"><ChevronRight size={20}/></button>
                                 </div>
-                                {/* 功能按鈕群 */}
                                 <button onClick={goToToday} className="flex flex-col items-center justify-center px-3 py-2 text-slate-800 hover:bg-slate-100 rounded-xl border-0 btn-press active:scale-95 transition" title="回到今天"><CalendarIcon size={24} /></button>
                                 <button onClick={() => setShowInfoModal(true)} className="flex flex-col items-center justify-center px-3 py-2 bg-blue-100 text-blue-800 rounded-xl border-2 border-blue-800 btn-press active:scale-95 transition" title="查看排班規則"><InfoIcon size={18} /><span className="text-[10px] font-bold mt-0.5">規則</span></button>
-                                {/* 分隔線 */}
+                                <button onClick={handleExport} className="flex flex-col items-center justify-center px-3 py-2 bg-emerald-100 text-emerald-800 rounded-xl border-2 border-emerald-800 btn-press active:scale-95 transition" title="匯出目前畫面為 Excel"><DownloadIcon size={18} /><span className="text-[10px] font-bold mt-0.5">匯出</span></button>
+                                <button onClick={handleImportClick} className="flex flex-col items-center justify-center px-3 py-2 bg-sky-100 text-sky-800 rounded-xl border-2 border-sky-800 btn-press active:scale-95 transition" title="從 Excel 匯入排班"><UploadIcon size={18} /><span className="text-[10px] font-bold mt-0.5">匯入</span></button>
                                 <div className="w-0.5 h-10 bg-slate-200 mx-1"></div>
-                                {/* 工具按鈕 */}
                                 <button onClick={() => toggleTool(TOOL_ERASER.id)} className={`group relative flex flex-row items-center justify-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none ${selectedTool === TOOL_ERASER.id ? 'scale-105 z-10 -translate-y-1 ' + TOOL_ERASER.color.replace('border-', 'border-slate-900 ') : 'bg-white border-slate-200 hover:border-slate-800 hover:-translate-y-0.5 opacity-90 hover:opacity-100'}`}>
-                                    <span className="text-xl filter drop-shadow-sm">{TOOL_ERASER.icon}</span>
-                                    <span className={`text-base font-bold ${selectedTool === TOOL_ERASER.id ? 'text-slate-900' : 'text-slate-700'}`}>{TOOL_ERASER.name}</span>
-                                    {selectedTool === TOOL_ERASER.id && (<div className="absolute -top-2 -right-2 bg-slate-900 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center border-2 border-white">✓</div>)}
+                                    <span className="text-xl filter drop-shadow-sm">{TOOL_ERASER.icon}</span><span className={`text-base font-bold ${selectedTool === TOOL_ERASER.id ? 'text-slate-900' : 'text-slate-700'}`}>{TOOL_ERASER.name}</span>{selectedTool === TOOL_ERASER.id && (<div className="absolute -top-2 -right-2 bg-slate-900 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center border-2 border-white">✓</div>)}
                                 </button>
                                 {Object.values(SHIFT_TYPES).filter(t => t.id !== 'REST' && t.id !== 'NORMAL').map(type => (
                                     <button key={type.id} onClick={() => toggleTool(type.id)} draggable="false" className={`group relative flex flex-row items-center justify-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none ${selectedTool === type.id ? 'scale-105 z-10 -translate-y-1 shadow-md ' : 'bg-white hover:bg-slate-50 hover:-translate-y-0.5 opacity-90 hover:opacity-100 shadow-sm border border-slate-200'}`}>
-                                        <span className="text-2xl filter drop-shadow-sm leading-none mr-1">{type.icon}</span>
-                                        <span className={`text-xs font-bold ${selectedTool === type.id ? 'text-slate-800' : 'text-slate-700'}`}>{type.name}</span>
-                                        {selectedTool === type.id && (<div className="absolute -top-2 -right-2 bg-slate-900 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center border-2 border-white">✓</div>)}
+                                        <span className="text-2xl filter drop-shadow-sm leading-none">{type.icon}</span>{selectedTool === type.id && (<div className="absolute -top-2 -right-2 bg-slate-900 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center border-2 border-white">✓</div>)}
                                     </button>
                                 ))}
-                                {/* 右側資訊 */}
-                                <div className="ml-auto pl-4 border-l-2 border-slate-200 flex flex-col items-end">
-                                    <div className="flex items-center gap-1 text-sm font-bold text-slate-800"><span className="bg-yellow-200 px-1 rounded text-xs">Hi</span>{currentUser.name}</div>
-                                    {lastModifiedInfo && (<div className="text-[10px] text-slate-400 whitespace-nowrap">Update: {lastModifiedInfo.by} {lastModifiedInfo.at}</div>)}
-                                </div>
+                                <div className="ml-auto pl-4 border-l-2 border-slate-200 flex flex-col items-end"><div className="flex items-center gap-1 text-sm font-bold text-slate-800"><span className="bg-yellow-200 px-1 rounded text-xs">Hi</span>{currentUser.name}</div>{lastModifiedInfo && (<div className="text-[10px] text-slate-400 whitespace-nowrap">Update: {lastModifiedInfo.by} {lastModifiedInfo.at}</div>)}</div>
                             </div>
                         </div>
                     </header>
@@ -670,9 +704,18 @@
                         <div className="flex-1 overflow-auto" ref={scrollRef}>
                             <table className="border-collapse w-full min-w-max">
                                 <thead className="sticky top-0 z-20 bg-stone-50 shadow-sm">
+                                    {/* 月份分界列 */}
+                                    <tr>
+                                        <th className="bg-stone-100 border-b border-r border-stone-300 min-w-[140px]"></th>
+                                        {monthGroups.map((group, idx) => (
+                                            <th key={idx} colSpan={group.count} className="bg-slate-800 text-white border-r border-slate-600 py-1 text-center font-bold text-sm tracking-wider">
+                                                {group.label}
+                                            </th>
+                                        ))}
+                                    </tr>
                                     <tr>
                                         <th className="sticky left-0 z-30 bg-stone-100 border-b-2 border-r-2 border-stone-300 min-w-[140px] p-2 text-center font-black text-slate-600 text-xl tracking-widest shadow-[2px_0_5px_rgba(0,0,0,0.05)]">姓名</th>
-                                        {days.map(day => (
+                                        {daysData.map(day => (
                                             <th key={day.dateStr} className={`border-b-2 border-r border-stone-200 min-w-[48px] py-2 text-center relative ${day.holiday ? 'bg-sky-50' : day.isWeekend ? 'bg-rose-50' : 'bg-white'}`}>
                                                 <div className={`text-sm font-bold mb-0.5 ${day.isWeekend || day.holiday ? 'text-rose-600' : 'text-slate-500'}`}>{day.dayOfWeek}</div>
                                                 <div className={`text-xl font-black leading-none ${getDateStr(new Date()) === day.dateStr ? 'text-blue-600 underline decoration-wavy decoration-2' : 'text-slate-800'}`}>
@@ -688,7 +731,7 @@
                                     </tr>
                                     <tr className="bg-stone-100 border-b-2 border-stone-300">
                                         <th className="sticky left-0 z-30 bg-stone-200 border-r-2 border-stone-300 p-2 font-bold text-sm text-slate-600 text-center shadow-[2px_0_5px_rgba(0,0,0,0.05)]">人力配置</th>
-                                        {days.map(day => {
+                                        {daysData.map(day => {
                                             let currentCount = 0;
                                             USER_LIST.forEach(u => {
                                                 const s = schedule[u.name]?.[day.dateStr];
@@ -708,8 +751,6 @@
                                                 if (s) {
                                                     if (['EVE_WEEKDAY', 'EVE_WEEKEND', 'ROTATION_A', 'ROTATION_B', 'NORMAL'].includes(s)) currentCount++;
                                                 } else {
-                                                    // Implicit logic: 
-                                                    // Count as 1 if: Not Weekend AND Not Holiday AND Not in any cycle (Green/Purple)
                                                     if (!day.isWeekend && !day.holiday && !isRotationUser && !isWeekNightUser) {
                                                         currentCount++;
                                                     }
@@ -726,7 +767,7 @@
                                                 <td className="sticky left-0 z-10 bg-white group-hover/row:bg-yellow-50/50 border-r-2 border-stone-300 p-0 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                                                     <div className="px-3 py-2 h-full group/namecell min-w-[140px] flex justify-center items-center"><span className="font-bold text-slate-800 text-lg tracking-wide">{userData.name}</span></div>
                                                 </td>
-                                                {days.map(day => {
+                                                {daysData.map(day => {
                                                     const shiftId = schedule[userData.name]?.[day.dateStr];
                                                     const shift = shiftId && SHIFT_TYPES[shiftId] ? SHIFT_TYPES[shiftId] : null;
                                                     const shiftLabel = getShiftLabel(shift);
@@ -767,7 +808,7 @@
                         </div>
                     </div>
 
-                    {/* Cell Menu Modal & Auto Fill Modal & Info Modal & Confirm Modal */}
+                    {/* Cell Menu Modal */}
                     {activeCell && (
                         <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setActiveCell(null)}>
                             <div className="bg-white rounded-xl shadow-xl p-4 w-full max-w-sm border-2 border-slate-800 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
