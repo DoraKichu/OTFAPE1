@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>班表手帳 2025-2026 (雲端同步版)</title>
+    <title>班表手帳 2025-2026 (雲端同步版 v1.3.3)</title>
     
     <!-- 引入 React 和 ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -128,19 +128,22 @@
             { id: 'v04463', name: '林明儒' }
         ];
 
+        // 班別設定：調淡顏色為 200/100 系列
         const SHIFT_TYPES = {
-            NORMAL: { id: 'NORMAL', name: '常日', time: '08:30-17:30', color: 'bg-blue-600 text-white border-blue-800', icon: '☀️' },
-            EVE_WEEKDAY: { id: 'EVE_WEEKDAY', name: '平日夜', time: '15:00-24:00', color: 'bg-violet-700 text-white border-violet-900', icon: '🌝' },
-            EVE_WEEKEND: { id: 'EVE_WEEKEND', name: '假日夜', time: '15:00-24:00', color: 'bg-pink-600 text-white border-pink-800', icon: '🌚' },
-            ROTATION_A: { id: 'ROTATION_A', name: 'A班', time: '07:20-19:20', color: 'bg-orange-500 text-white border-orange-700', icon: 'A' },
-            ROTATION_B: { id: 'ROTATION_B', name: 'B班', time: '07:20-19:20', color: 'bg-teal-600 text-white border-teal-800', icon: 'B' },
-            LEAVE: { id: 'LEAVE', name: '請假', time: 'OFF', color: 'bg-slate-700 text-white border-slate-900', icon: '🔞' },
-            REST: { id: 'REST', name: '休', time: 'REST', color: 'bg-stone-200 text-stone-600 border-stone-300 border-dashed', icon: '💤' }
+            NORMAL: { id: 'NORMAL', name: '常日', time: '08:30-17:30', color: 'bg-white border border-slate-200 shadow-sm text-slate-800', icon: '☀️' },
+            // 平日夜：改為紫色
+            EVE_WEEKDAY: { id: 'EVE_WEEKDAY', name: '平日夜', time: '15:00-24:00', color: 'bg-purple-200 text-purple-900 border-purple-300 shadow-sm', icon: '🌝' },
+            // 假日夜：改為灰色
+            EVE_WEEKEND: { id: 'EVE_WEEKEND', name: '假日夜', time: '15:00-24:00', color: 'bg-gray-200 text-gray-800 border-gray-300 shadow-sm', icon: '🌚' },
+            ROTATION_A: { id: 'ROTATION_A', name: 'A班', time: '07:20-19:20', color: 'bg-green-200 text-green-900 border-green-300 shadow-sm', icon: '🅰️' },
+            ROTATION_B: { id: 'ROTATION_B', name: 'B班', time: '07:20-19:20', color: 'bg-yellow-100 text-yellow-900 border-yellow-300 shadow-sm', icon: '🅱️' },
+            LEAVE: { id: 'LEAVE', name: '請假', time: 'OFF', color: 'bg-white border border-slate-200 shadow-sm text-slate-800', icon: '👑' },
+            REST: { id: 'REST', name: '休', time: 'REST', color: 'border-2 border-dashed border-slate-300 text-slate-400', icon: '💤' }
         };
 
         const TOOL_ERASER = {
             id: 'ERASER', name: '清除', time: '',
-            color: 'bg-white text-slate-700 border-slate-400 border-2 border-dashed', 
+            color: 'bg-white text-slate-500 border-2 border-dashed border-slate-300', 
             icon: <Eraser size={18} />
         };
 
@@ -291,7 +294,7 @@
 
             const [schedule, setSchedule] = useState({});
             const [rotationCycles, setRotationCycles] = useState({}); 
-            const [weekNightCycles, setWeekNightCycles] = useState({}); // { [userName]: [{start: 'YYYY-MM-DD', end: 'YYYY-MM-DD'}] }
+            const [weekNightCycles, setWeekNightCycles] = useState({}); 
             const [lastModifiedInfo, setLastModifiedInfo] = useState(null); 
             const [selectedTool, setSelectedTool] = useState(null); 
             const scrollRef = useRef(null);
@@ -585,7 +588,6 @@
                     saveToDb({ schedule: newSchedule, rotationCycles: newCycles });
 
                 } else if (autoRule === 'week-night') {
-                    // 1. Update Week Night Cycles for Visuals
                     const newWNCycles = { ...weekNightCycles };
                     const userWNCycles = newWNCycles[targetUser] || [];
                     userWNCycles.push({ start: autoStartDate, end: endDateStr });
@@ -789,12 +791,12 @@
                                         className={`
                                             group relative flex flex-row items-center justify-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none
                                             ${selectedTool === type.id 
-                                            ? 'scale-105 z-10 -translate-y-1 ' + type.color.replace('border-', 'border-slate-900 ') 
-                                            : 'bg-white border-slate-200 hover:border-slate-800 hover:-translate-y-0.5 opacity-90 hover:opacity-100'}
+                                            ? 'scale-105 z-10 -translate-y-1 shadow-md '
+                                            : 'bg-white hover:bg-slate-50 hover:-translate-y-0.5 opacity-90 hover:opacity-100 shadow-sm border border-slate-200'}
                                         `}
                                     >
-                                        <span className="text-xl filter drop-shadow-sm">{type.icon}</span>
-                                        <span className={`text-base font-bold ${selectedTool === type.id ? 'text-white' : 'text-slate-700'}`}>
+                                        <span className="text-xl filter drop-shadow-sm leading-none">{type.icon}</span>
+                                        <span className={`text-base font-bold ${selectedTool === type.id ? 'text-slate-800' : 'text-slate-700'}`}>
                                             {type.name}
                                         </span>
                                         {selectedTool === type.id && (
@@ -827,12 +829,17 @@
                                 <thead className="sticky top-0 z-20 bg-stone-50 shadow-sm">
                                     <tr>
                                         <th className="sticky left-0 z-30 bg-stone-100 border-b-2 border-r-2 border-stone-300 min-w-[140px] p-2 text-center font-black text-slate-600 text-xl tracking-widest shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
-                                            姓名/狀態
+                                            姓名
                                         </th>
                                         {days.map(day => (
                                             <th key={day.dateStr} className={`
                                                 border-b-2 border-r border-stone-200 min-w-[48px] py-2 text-center relative
-                                                ${day.holiday ? 'bg-sky-100' : (day.isWeekend ? 'bg-rose-50' : 'bg-white')}
+                                                ${
+                                                    // 底色判斷順序
+                                                    day.holiday ? 'bg-sky-50' : // 極淡藍
+                                                    day.isWeekend ? 'bg-rose-50' : 
+                                                    'bg-white'
+                                                }
                                             `}>
                                                 <div className={`text-sm font-bold mb-0.5 ${day.isWeekend || day.holiday ? 'text-rose-600' : 'text-slate-500'}`}>
                                                     {day.dayOfWeek}
@@ -898,19 +905,10 @@
                                         return (
                                             <tr key={userData.id} className="group/row bg-white hover:bg-yellow-50/50 transition-colors border-b border-stone-200">
                                                 <td className="sticky left-0 z-10 bg-white group-hover/row:bg-yellow-50/50 border-r-2 border-stone-300 p-0 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
-                                                    <div className="px-3 py-2 h-full group/namecell min-w-[140px] flex flex-col justify-center">
-                                                        <div className="flex items-center justify-between w-full">
-                                                            <span className="font-bold text-slate-800 text-lg tracking-wide">
-                                                                {userData.name}
-                                                            </span>
-                                                            <button 
-                                                                onClick={(e) => { e.stopPropagation(); confirmClearUser(userData.name); }}
-                                                                className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-full transition-all"
-                                                                title="擦掉紀錄"
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
-                                                        </div>
+                                                    <div className="px-3 py-2 h-full group/namecell min-w-[140px] flex justify-center items-center">
+                                                        <span className="font-bold text-slate-800 text-lg tracking-wide">
+                                                            {userData.name}
+                                                        </span>
                                                     </div>
                                                 </td>
                                                 {days.map(day => {
@@ -934,10 +932,10 @@
                                                     
                                                     // 背景色邏輯: 假日藍 > 週末紅 > 平日小夜週期紫 > 輪班週期綠 > 預設白
                                                     let bgClass = 'bg-white';
-                                                    if (day.holiday) bgClass = 'bg-sky-100';
+                                                    if (day.holiday) bgClass = 'bg-sky-50'; // 極淡藍
                                                     else if (day.isWeekend) bgClass = 'bg-rose-50';
-                                                    else if (isWeekNightUser) bgClass = 'bg-purple-50';
-                                                    else if (isRotationUser) bgClass = 'bg-green-50';
+                                                    else if (isWeekNightUser) bgClass = 'bg-purple-50'; // 極淡紫
+                                                    else if (isRotationUser) bgClass = 'bg-green-50'; // 極淡綠
 
                                                     return (
                                                         <td 
@@ -951,11 +949,10 @@
                                                         >
                                                             {shift ? (
                                                                 <div className={`
-                                                                    w-full h-11 flex items-center justify-center font-black text-xl border-2 transition-transform hover:scale-110 hover:z-10 relative
+                                                                    w-full h-11 flex items-center justify-center font-black text-xl transition-transform hover:scale-110 hover:z-10 relative rounded-lg
                                                                     ${shift.color} 
-                                                                    ${shift.id === 'LEAVE' || shift.id === 'NORMAL' ? 'rounded-md' : 'rounded-full'} 
-                                                                    ${shift.id === 'REST' ? 'bg-stone-200 border-stone-300 text-stone-500 border-dashed' : ''}
-                                                                `} style={{borderRadius: shift.id.includes('ROTATION') || shift.id === 'REST' ? '50%' : '8px'}}>
+                                                                    ${shift.id === 'REST' ? 'bg-stone-100' : ''}
+                                                                `}>
                                                                     {shiftLabel}
                                                                 </div>
                                                             ) : (
@@ -1004,15 +1001,13 @@
                                             key={type.id}
                                             onClick={() => applyShiftFromModal(type.id)}
                                             className={`
-                                                flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all btn-press
+                                                flex flex-col items-center justify-center p-3 rounded-xl transition-all btn-press
                                                 ${activeCell.currentShift === type.id 
-                                                ? 'border-slate-800 bg-slate-50 ring-2 ring-slate-800 ring-offset-1' 
-                                                : 'border-slate-200 bg-white hover:border-slate-400'}
+                                                ? 'ring-2 ring-slate-800 ring-offset-2 shadow-md'
+                                                : 'bg-white border border-slate-200 hover:border-slate-400'}
                                             `}
                                         >
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl mb-1 ${type.color.split(' ')[0]} text-white`}>
-                                                {type.icon}
-                                            </div>
+                                            <div className="text-3xl mb-1">{type.icon}</div>
                                             <span className="text-sm font-bold text-slate-700">{type.name}</span>
                                         </button>
                                     ))}
