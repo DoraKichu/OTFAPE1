@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>班表手帳 2025-2026 (雲端同步版 v3.7)</title>
+    <title>班表手帳 2025-2026 (雲端同步版 v3.6.1)</title>
     
     <!-- 引入 React 和 ReactDOM -->
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -140,8 +140,7 @@
             EVE_WEEKEND: { id: 'EVE_WEEKEND', name: '假日夜', time: '15:00-24:00', color: 'bg-gray-200 text-gray-800 border-gray-300 shadow-sm', icon: '🌚' },
             ROTATION_A: { id: 'ROTATION_A', name: 'A班', time: '07:20-19:20', color: 'bg-green-200 text-green-900 border-green-300 shadow-sm', icon: '🅰️' },
             ROTATION_B: { id: 'ROTATION_B', name: 'B班', time: '07:20-19:20', color: 'bg-yellow-100 text-yellow-900 border-yellow-300 shadow-sm', icon: '🅱️' },
-            // 新增 C班
-            ROTATION_C: { id: 'ROTATION_C', name: 'C班', time: '跟值', color: 'bg-cyan-100 text-cyan-900 border-cyan-300 shadow-sm', icon: '©️' },
+            ROTATION_C: { id: 'ROTATION_C', name: 'C班', time: '跟值', color: 'bg-cyan-100 text-cyan-900 border-cyan-300 shadow-sm', icon: '👥' },
             LEAVE: { id: 'LEAVE', name: '請假', time: 'OFF', color: 'bg-white border border-slate-200 shadow-sm text-slate-800', icon: '🛌' },
             REST: { id: 'REST', name: '休', time: 'REST', color: 'border-2 border-dashed border-slate-300 text-slate-400', icon: '💤' }
         };
@@ -260,7 +259,7 @@
                     const newCount = prev + 1;
                     if (newCount >= 5) {
                         if (eggTimerRef.current) clearTimeout(eggTimerRef.current);
-                        onLogin({ id: 'vip', name: '⚡速通玩家⚡', type: 'NORMAL' });
+                        onLogin({ id: 'vip', name: 'v02457', type: 'NORMAL' });
                         return 0;
                     }
                     return newCount;
@@ -313,20 +312,20 @@
             const [rotationCycles, setRotationCycles] = useState({}); 
             const [weekNightCycles, setWeekNightCycles] = useState({}); 
             const [lastModifiedInfo, setLastModifiedInfo] = useState(null); 
-            const [changeLogs, setChangeLogs] = useState([]); // 新增：更改紀錄
+            const [changeLogs, setChangeLogs] = useState([]); 
             const [selectedTool, setSelectedTool] = useState(null); 
             const scrollRef = useRef(null);
             
             // Drag states
             const [isDragging, setIsDragging] = useState(false);
             const dragStartRef = useRef(false);
-            const tempScheduleRef = useRef({}); // For batch updates during drag
+            const tempScheduleRef = useRef({}); 
             
             const [activeCell, setActiveCell] = useState(null); 
             const [showAutoFill, setShowAutoFill] = useState(false);
             const [confirmModal, setConfirmModal] = useState({ show: false, title: '', msg: '', action: null, isDangerous: false });
             const [showInfoModal, setShowInfoModal] = useState(false);
-            const [showLogModal, setShowLogModal] = useState(false); // 新增：Log Modal
+            const [showLogModal, setShowLogModal] = useState(false); 
             const [toast, setToast] = useState(null);
             const fileInputRef = useRef(null);
             
@@ -363,7 +362,7 @@
                         setSchedule(data.schedule || {});
                         setRotationCycles(data.rotationCycles || {});
                         setWeekNightCycles(data.weekNightCycles || {});
-                        setChangeLogs(data.changeLogs || []); // 載入 Log
+                        setChangeLogs(data.changeLogs || []); 
                         if (data.lastModifiedBy && data.lastModifiedAt) {
                             setLastModifiedInfo({ by: data.lastModifiedBy, at: data.lastModifiedAt });
                         }
@@ -384,15 +383,12 @@
                     if (dragStartRef.current) {
                         dragStartRef.current = false;
                         setIsDragging(false);
-                        // Save accumulated changes from drag
                         if (Object.keys(tempScheduleRef.current).length > 0) {
-                            // Merge temp with current schedule to save
                             const finalSchedule = { ...schedule };
                             Object.keys(tempScheduleRef.current).forEach(u => {
                                 finalSchedule[u] = { ...finalSchedule[u], ...tempScheduleRef.current[u] };
                             });
                             
-                            // Log the batch change (simplified)
                             const logEntry = {
                                 time: new Date().toLocaleString('zh-TW'),
                                 user: currentUser ? currentUser.name : 'Unknown',
@@ -400,15 +396,14 @@
                                 detail: `更新了 ${Object.keys(tempScheduleRef.current).length} 位人員的班表`
                             };
                             
-                            // Save
                             saveToDb({ schedule: finalSchedule }, false, logEntry);
-                            tempScheduleRef.current = {}; // Reset temp
+                            tempScheduleRef.current = {}; 
                         }
                     }
                 };
                 window.addEventListener('mouseup', handleGlobalMouseUp);
                 return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
-            }, [schedule, currentUser]); // Dep needed for schedule access in save
+            }, [schedule, currentUser]); 
 
             const saveToDb = (newData = {}, isOverwrite = false, logEntry = null) => {
                 return new Promise(async (resolve) => {
@@ -416,11 +411,10 @@
                     const newRotationCycles = newData.rotationCycles !== undefined ? newData.rotationCycles : rotationCycles;
                     const newWeekNightCycles = newData.weekNightCycles !== undefined ? newData.weekNightCycles : weekNightCycles;
                     
-                    // Handle Logs
                     let newLogs = [...changeLogs];
                     if (logEntry) {
                         newLogs.unshift(logEntry);
-                        if (newLogs.length > 20) newLogs = newLogs.slice(0, 20); // Keep last 20
+                        if (newLogs.length > 20) newLogs = newLogs.slice(0, 20); 
                     }
 
                     if (!isConfigured) {
@@ -481,21 +475,16 @@
                 setCurrentUser(null); setSelectedTool(null);
             };
 
-            // Mouse Events for Drag
             const handleCellMouseDown = (e, userName, dateStr) => {
                 if (!selectedTool) {
-                    // Normal click behavior if no tool selected
                     const currentShift = schedule[userName]?.[dateStr];
                     setActiveCell({ user: userName, dateStr, currentShift });
                     return;
                 }
-                
-                // Start Drag
                 dragStartRef.current = true;
                 setIsDragging(true);
-                tempScheduleRef.current = {}; // Reset temp
-                
-                applyToolToCell(userName, dateStr); // Apply to first cell
+                tempScheduleRef.current = {}; 
+                applyToolToCell(userName, dateStr); 
             };
 
             const handleCellMouseEnter = (e, userName, dateStr) => {
@@ -505,9 +494,7 @@
             };
 
             const applyToolToCell = (userName, dateStr) => {
-                // Update local visual state first
-                const newSchedule = { ...schedule }; // Use current schedule as base
-                // Merge with temp updates so far
+                const newSchedule = { ...schedule }; 
                 Object.keys(tempScheduleRef.current).forEach(u => {
                     newSchedule[u] = { ...newSchedule[u], ...tempScheduleRef.current[u] };
                 });
@@ -519,35 +506,11 @@
                     userSchedule[dateStr] = selectedTool;
                 }
                 
-                // Update temp ref for final save
                 if (!tempScheduleRef.current[userName]) tempScheduleRef.current[userName] = {};
-                if (selectedTool === 'ERASER') {
-                    // Mark as deleted - trick: use specific value or handle in merge?
-                    // In flat map merge, we can't easily "delete" key from object. 
-                    // Simple hack: We update React state directly for visuals.
-                    // For tempRef, we store the *result* state of that user's schedule for that day?
-                    // No, tempRef stores pending changes. 
-                    // Let's just update the React state `schedule` directly during drag for smoothness,
-                    // and also update `tempScheduleRef` to know what changed.
-                    // But wait, updating state triggers re-render, which is what we want.
-                }
-
-                // Actually, for simplicity and performance in this specific app structure:
-                // Just update the React state immediately.
-                // But don't call saveToDb yet.
-                // We need to know *what* to save on MouseUp.
-                // We will rely on `schedule` state being updated.
-                
-                // Optimized approach: Update State. 
-                newSchedule[userName] = userSchedule;
-                setSchedule(newSchedule); // Visual update
-                
-                // Record change for log/save
-                if (!tempScheduleRef.current[userName]) tempScheduleRef.current[userName] = {};
-                 // Logic for delete in merge? Firestore `setDoc` with merge replaces fields. 
-                 // To delete a field, we usually use deleteField(). But here we save the whole object for the user map.
-                 // So sending the updated object is fine.
                  tempScheduleRef.current[userName] = userSchedule;
+
+                newSchedule[userName] = userSchedule;
+                setSchedule(newSchedule); 
             };
 
             const toggleTool = (toolId) => { if (selectedTool === toolId) setSelectedTool(null); else setSelectedTool(toolId); };
@@ -670,7 +633,7 @@
                 setShowAutoFill(false);
             };
 
-            const days = (() => {
+            const daysData = useMemo(() => {
                 const arr = [];
                 for (let i = 0; i < 30; i++) {
                     const date = new Date(viewStartDate);
@@ -685,29 +648,29 @@
                     });
                 }
                 return arr;
-            })();
+            }, [viewStartDate]);
 
             const monthGroups = useMemo(() => {
                 const groups = [];
-                if (days.length === 0) return groups;
-                let currentMonth = days[0].monthLabel;
+                if (daysData.length === 0) return groups;
+                let currentMonth = daysData[0].monthLabel;
                 let count = 0;
-                days.forEach(day => {
+                daysData.forEach(day => {
                     if (day.monthLabel === currentMonth) { count++; } 
                     else { groups.push({ label: currentMonth, count }); currentMonth = day.monthLabel; count = 1; }
                 });
                 groups.push({ label: currentMonth, count });
                 return groups;
-            }, [days]);
+            }, [daysData]);
 
             const handleExport = () => {
                 if (!schedule) return;
                 const exportData = [];
-                const header = ['姓名', ...days.map(d => d.dateStr)];
+                const header = ['姓名', ...daysData.map(d => d.dateStr)];
                 exportData.push(header);
                 USER_LIST.forEach(user => {
                     const row = [user.name];
-                    days.forEach(day => {
+                    daysData.forEach(day => {
                         const shiftId = schedule[user.name]?.[day.dateStr];
                         if (shiftId) row.push(getShiftName(shiftId));
                         else row.push(''); 
@@ -770,17 +733,6 @@
                     <input type="file" ref={fileInputRef} onChange={handleImport} accept=".xlsx, .xls" style={{ display: 'none' }} />
                     {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-                    {permissionError && (
-                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-fade-in">
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border-l-8 border-red-500">
-                                <div className="flex items-center gap-3 mb-4 text-red-600"><AlertTriangle size={32} /><h3 className="text-xl font-black">資料庫權限不足</h3></div>
-                                <p className="text-slate-600 mb-4 leading-relaxed">您的 Firebase Firestore 安全規則目前設為禁止寫入。</p>
-                                <button onClick={() => window.location.reload()} className="w-full py-3 bg-red-600 text-white rounded-xl font-bold shadow-lg hover:bg-red-700 transition">我已修正規則，重新載入</button>
-                            </div>
-                        </div>
-                    )}
-                    {!isConfigured && <div className="bg-red-500 text-white text-center text-xs py-1">尚未設定 Firebase，資料將無法儲存。</div>}
-
                     <header className="z-30 flex-none bg-white/90 backdrop-blur-sm shadow-sm border-b-2 border-stone-200">
                         <div className="w-full overflow-x-auto hide-scrollbar py-3 px-2">
                             <div className="flex items-center gap-3 min-w-max">
@@ -831,7 +783,7 @@
                                     </tr>
                                     <tr>
                                         <th className="sticky left-0 z-30 bg-stone-100 border-b-2 border-r-2 border-stone-300 min-w-[140px] p-2 text-center font-black text-slate-600 text-xl tracking-widest shadow-[2px_0_5px_rgba(0,0,0,0.05)]">姓名</th>
-                                        {days.map(day => (
+                                        {daysData.map(day => (
                                             <th key={day.dateStr} className={`border-b-2 border-r border-stone-200 min-w-[48px] py-2 text-center relative ${day.holiday ? 'bg-sky-50' : day.isWeekend ? 'bg-rose-50' : 'bg-white'}`}>
                                                 <div className={`text-sm font-bold mb-0.5 ${day.isWeekend || day.holiday ? 'text-rose-600' : 'text-slate-500'}`}>{day.dayOfWeek}</div>
                                                 <div className={`text-xl font-black leading-none ${getDateStr(new Date()) === day.dateStr ? 'text-blue-600 underline decoration-wavy decoration-2' : 'text-slate-800'}`}>
@@ -841,20 +793,6 @@
                                             </th>
                                         ))}
                                     </tr>
-                                    <tr className="bg-stone-100 border-b-2 border-stone-300">
-                                        <th className="sticky left-0 z-30 bg-stone-200 border-r-2 border-stone-300 p-2 font-bold text-sm text-slate-600 text-center shadow-[2px_0_5px_rgba(0,0,0,0.05)]">人力配置</th>
-                                        {days.map(day => {
-                                            let currentCount = 0;
-                                            USER_LIST.forEach(u => {
-                                                const s = schedule[u.name]?.[day.dateStr];
-                                                const isRotationUser = schedule.rotationCycles?.[u.name]?.some(c => { const s = new Date(c.start).getTime(); const e = new Date(c.end).getTime(); const d = new Date(day.date).getTime(); return d >= s && d <= e; });
-                                                const isWeekNightUser = schedule.weekNightCycles?.[u.name]?.some(c => { const s = new Date(c.start).getTime(); const e = new Date(c.end).getTime(); const d = new Date(day.date).getTime(); return d >= s && d <= e; });
-                                                if (s) { if (['EVE_WEEKDAY', 'EVE_WEEKEND', 'ROTATION_A', 'ROTATION_B', 'ROTATION_C', 'NORMAL'].includes(s)) currentCount++; } 
-                                                else { if (u.type === 'NORMAL' && !day.isWeekend && !day.holiday) currentCount++; }
-                                            });
-                                            return (<th key={`sum-${day.dateStr}`} className="border-r border-stone-300 text-center py-1 bg-stone-100"><span className={`text-lg font-bold ${currentCount > 0 ? 'text-slate-800' : 'text-slate-300'}`}>{currentCount || '-'}</span></th>);
-                                        })}
-                                    </tr>
                                 </thead>
                                 <tbody>
                                     {USER_LIST.map((userData) => (
@@ -862,7 +800,7 @@
                                             <td className="sticky left-0 z-10 bg-white group-hover/row:bg-yellow-50/50 border-r-2 border-stone-300 p-0 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                                                 <div className="px-3 py-2 h-full group/namecell min-w-[140px] flex justify-center items-center"><span className="font-bold text-slate-800 text-lg tracking-wide">{userData.name}</span></div>
                                             </td>
-                                            {days.map(day => {
+                                            {daysData.map(day => {
                                                 const shiftId = schedule[userData.name]?.[day.dateStr];
                                                 const shift = shiftId && SHIFT_TYPES[shiftId] ? SHIFT_TYPES[shiftId] : null;
                                                 const shiftLabel = getShiftLabel(shift);
@@ -937,6 +875,7 @@
                             </div>
                         </div>
                     )}
+
                     {showAutoFill && (
                         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
                             <div className="bg-yellow-100 rounded-lg shadow-lg max-w-sm w-full p-6 border-2 border-slate-900 relative rotate-1">
@@ -960,6 +899,7 @@
                             </div>
                         </div>
                     )}
+
                     {showInfoModal && (
                         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={() => setShowInfoModal(false)}>
                             <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 border-2 border-slate-800 relative" onClick={e => e.stopPropagation()}>
