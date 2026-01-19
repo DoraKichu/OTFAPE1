@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>班表手帳 2025-2026 (雲端同步版 v3.5)</title>
+    <title>班表手帳 2025-2026 (雲端同步版 v3.7)</title>
     
     <!-- 引入 React 和 ReactDOM -->
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -77,10 +77,12 @@
         const ChevronRight = (props) => <IconBase {...props}><path d="m9 18 6-6-6-6"/></IconBase>;
         const Zap = (props) => <IconBase {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></IconBase>;
         const Trash2 = (props) => <IconBase {...props}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconBase>;
+        const RotateCcw = (props) => <IconBase {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></IconBase>;
         const AlertTriangle = (props) => <IconBase {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></IconBase>;
         const XIcon = (props) => <IconBase {...props}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconBase>;
         const CalendarIcon = (props) => <IconBase {...props}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></IconBase>;
         const Eraser = (props) => <IconBase {...props}><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></IconBase>;
+        const Hand = (props) => <IconBase {...props}><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a9 9 0 0 1 3.24-14.22"/></IconBase>;
         const SaveIcon = (props) => <IconBase {...props}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></IconBase>;
         const LogOutIcon = (props) => <IconBase {...props}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></IconBase>;
         const UserIcon = (props) => <IconBase {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></IconBase>;
@@ -88,6 +90,7 @@
         const CheckIcon = (props) => <IconBase {...props}><polyline points="20 6 9 17 4 12"/></IconBase>;
         const UploadIcon = (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></IconBase>;
         const DownloadIcon = (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconBase>;
+        const ScrollTextIcon = (props) => <IconBase {...props}><path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/></IconBase>;
 
         // --- Firebase Configuration ---
         const firebaseConfig = {
@@ -120,22 +123,25 @@
         const USER_LIST = [
             { id: 'v02455', name: '周哲維', type: 'NORMAL' },
             { id: 'v02457', name: '陳泓廷', type: 'NORMAL' },
-            { id: 'v03111', name: '王泓凱', type: 'ROTATION' }, // B組 No.1
-            { id: 'v03369', name: '陳嘉軒', type: 'ROTATION' }, // A組 No.1
-            { id: 'v04151', name: '張皓翔', type: 'ROTATION' }, // B組 No.2
-            { id: 'v03370', name: '陳浩霖', type: 'ROTATION' }, // A組 No.2
-            { id: 'v04457', name: '翁子涵', type: 'ROTATION' }, // B組 No.3
-            { id: 'v03735', name: '趙婉卉', type: 'ROTATION' }, // A組 No.3
-            { id: 'v03282', name: '游佳憲', type: 'ROTATION' }, // B組 No.4
-            { id: 'v04463', name: '林明儒', type: 'ROTATION' }  // A組 No.4
+            { id: 'v03111', name: '王泓凱', type: 'ROTATION' },
+            { id: 'v03369', name: '陳嘉軒', type: 'ROTATION' },
+            { id: 'v04151', name: '張皓翔', type: 'ROTATION' },
+            { id: 'v03370', name: '陳浩霖', type: 'ROTATION' },
+            { id: 'v04457', name: '翁子涵', type: 'ROTATION' },
+            { id: 'v03735', name: '趙婉卉', type: 'ROTATION' },
+            { id: 'v03282', name: '游佳憲', type: 'ROTATION' },
+            { id: 'v04463', name: '林明儒', type: 'ROTATION' }
         ];
 
+        // 班別設定
         const SHIFT_TYPES = {
             NORMAL: { id: 'NORMAL', name: '常日', time: '08:30-17:30', color: 'bg-white border border-slate-200 shadow-sm text-slate-800', icon: '☀️' },
             EVE_WEEKDAY: { id: 'EVE_WEEKDAY', name: '平日夜', time: '15:00-24:00', color: 'bg-purple-200 text-purple-900 border-purple-300 shadow-sm', icon: '🌝' },
             EVE_WEEKEND: { id: 'EVE_WEEKEND', name: '假日夜', time: '15:00-24:00', color: 'bg-gray-200 text-gray-800 border-gray-300 shadow-sm', icon: '🌚' },
             ROTATION_A: { id: 'ROTATION_A', name: 'A班', time: '07:20-19:20', color: 'bg-green-200 text-green-900 border-green-300 shadow-sm', icon: '🅰️' },
             ROTATION_B: { id: 'ROTATION_B', name: 'B班', time: '07:20-19:20', color: 'bg-yellow-100 text-yellow-900 border-yellow-300 shadow-sm', icon: '🅱️' },
+            // 新增 C班
+            ROTATION_C: { id: 'ROTATION_C', name: 'C班', time: '跟值', color: 'bg-cyan-100 text-cyan-900 border-cyan-300 shadow-sm', icon: '©️' },
             LEAVE: { id: 'LEAVE', name: '請假', time: 'OFF', color: 'bg-white border border-slate-200 shadow-sm text-slate-800', icon: '🛌' },
             REST: { id: 'REST', name: '休', time: 'REST', color: 'border-2 border-dashed border-slate-300 text-slate-400', icon: '💤' }
         };
@@ -188,6 +194,7 @@
             if (shift.id === 'EVE_WEEKEND') return shift.icon;
             if (shift.id === 'ROTATION_A') return shift.icon;
             if (shift.id === 'ROTATION_B') return shift.icon;
+            if (shift.id === 'ROTATION_C') return shift.icon;
             if (shift.id === 'NORMAL') return shift.icon;
             return shift.name[0];
         };
@@ -306,12 +313,20 @@
             const [rotationCycles, setRotationCycles] = useState({}); 
             const [weekNightCycles, setWeekNightCycles] = useState({}); 
             const [lastModifiedInfo, setLastModifiedInfo] = useState(null); 
+            const [changeLogs, setChangeLogs] = useState([]); // 新增：更改紀錄
             const [selectedTool, setSelectedTool] = useState(null); 
             const scrollRef = useRef(null);
+            
+            // Drag states
+            const [isDragging, setIsDragging] = useState(false);
+            const dragStartRef = useRef(false);
+            const tempScheduleRef = useRef({}); // For batch updates during drag
+            
             const [activeCell, setActiveCell] = useState(null); 
             const [showAutoFill, setShowAutoFill] = useState(false);
             const [confirmModal, setConfirmModal] = useState({ show: false, title: '', msg: '', action: null, isDangerous: false });
             const [showInfoModal, setShowInfoModal] = useState(false);
+            const [showLogModal, setShowLogModal] = useState(false); // 新增：Log Modal
             const [toast, setToast] = useState(null);
             const fileInputRef = useRef(null);
             
@@ -348,11 +363,12 @@
                         setSchedule(data.schedule || {});
                         setRotationCycles(data.rotationCycles || {});
                         setWeekNightCycles(data.weekNightCycles || {});
+                        setChangeLogs(data.changeLogs || []); // 載入 Log
                         if (data.lastModifiedBy && data.lastModifiedAt) {
                             setLastModifiedInfo({ by: data.lastModifiedBy, at: data.lastModifiedAt });
                         }
                     } else {
-                        setDoc(docRef, { schedule: {}, rotationCycles: {}, weekNightCycles: {} }, { merge: true });
+                        setDoc(docRef, { schedule: {}, rotationCycles: {}, weekNightCycles: {}, changeLogs: [] }, { merge: true });
                     }
                 }, (error) => {
                     console.error("Sync error:", error);
@@ -362,24 +378,63 @@
                 return () => unsubscribe();
             }, [firebaseUser]);
 
-            const saveToDb = (newData = {}, isManual = false) => {
+            // Add global mouse up listener for drag end
+            useEffect(() => {
+                const handleGlobalMouseUp = () => {
+                    if (dragStartRef.current) {
+                        dragStartRef.current = false;
+                        setIsDragging(false);
+                        // Save accumulated changes from drag
+                        if (Object.keys(tempScheduleRef.current).length > 0) {
+                            // Merge temp with current schedule to save
+                            const finalSchedule = { ...schedule };
+                            Object.keys(tempScheduleRef.current).forEach(u => {
+                                finalSchedule[u] = { ...finalSchedule[u], ...tempScheduleRef.current[u] };
+                            });
+                            
+                            // Log the batch change (simplified)
+                            const logEntry = {
+                                time: new Date().toLocaleString('zh-TW'),
+                                user: currentUser ? currentUser.name : 'Unknown',
+                                action: '批量修改 (滑鼠拖曳)',
+                                detail: `更新了 ${Object.keys(tempScheduleRef.current).length} 位人員的班表`
+                            };
+                            
+                            // Save
+                            saveToDb({ schedule: finalSchedule }, false, logEntry);
+                            tempScheduleRef.current = {}; // Reset temp
+                        }
+                    }
+                };
+                window.addEventListener('mouseup', handleGlobalMouseUp);
+                return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+            }, [schedule, currentUser]); // Dep needed for schedule access in save
+
+            const saveToDb = (newData = {}, isOverwrite = false, logEntry = null) => {
                 return new Promise(async (resolve) => {
                     const newSchedule = newData.schedule !== undefined ? newData.schedule : schedule;
                     const newRotationCycles = newData.rotationCycles !== undefined ? newData.rotationCycles : rotationCycles;
                     const newWeekNightCycles = newData.weekNightCycles !== undefined ? newData.weekNightCycles : weekNightCycles;
+                    
+                    // Handle Logs
+                    let newLogs = [...changeLogs];
+                    if (logEntry) {
+                        newLogs.unshift(logEntry);
+                        if (newLogs.length > 20) newLogs = newLogs.slice(0, 20); // Keep last 20
+                    }
 
                     if (!isConfigured) {
-                        setSchedule(newSchedule); setRotationCycles(newRotationCycles); setWeekNightCycles(newWeekNightCycles);
-                        if (isManual) showToast("尚未設定資料庫，僅暫存於本機", "warning");
+                        setSchedule(newSchedule); setRotationCycles(newRotationCycles); setWeekNightCycles(newWeekNightCycles); setChangeLogs(newLogs);
+                        if (!isOverwrite) showToast("尚未設定資料庫，僅暫存於本機", "warning");
                         resolve(true); return;
                     }
                     if (!auth || !firebaseUser) {
-                        if (isManual) showToast("尚未連線，請檢查網路或 Firebase 設定", "error");
+                        if (!isOverwrite) showToast("尚未連線，請檢查網路或 Firebase 設定", "error");
                         signInAnonymously(auth).catch(e => console.error(e));
                         resolve(false); return;
                     }
                     if (!db) {
-                         if (isManual) showToast("資料庫未初始化", "error");
+                         if (!isOverwrite) showToast("資料庫未初始化", "error");
                          resolve(false); return;
                     }
 
@@ -394,22 +449,24 @@
                         schedule: newSchedule,
                         rotationCycles: newRotationCycles,
                         weekNightCycles: newWeekNightCycles,
+                        changeLogs: newLogs,
                         lastModifiedBy: currentUser ? currentUser.name : 'Unknown',
                         lastModifiedAt: timeString
                     };
 
                     try {
-                        const options = isManual ? {} : { merge: true };
+                        const options = isOverwrite ? {} : { merge: true };
                         const result = await Promise.race([ setDoc(docRef, dataToSave, options), timeoutPromise ]);
                         if (result === 'TIMEOUT') throw new Error("Save timeout");
-                        setSchedule(newSchedule); setRotationCycles(newRotationCycles); setWeekNightCycles(newWeekNightCycles);
-                        if (isManual) showToast("儲存成功！", "success");
+                        
+                        setSchedule(newSchedule); setRotationCycles(newRotationCycles); setWeekNightCycles(newWeekNightCycles); setChangeLogs(newLogs);
+                        if (!isOverwrite) showToast("儲存成功！", "success");
                         resolve(true);
                     } catch (e) {
                         console.error("Save error:", e);
-                        if (e.code === 'permission-denied') { setPermissionError(true); if (isManual) showToast("儲存失敗：權限不足", "error"); }
-                        else if (e.message === "Save timeout") { if (isManual) showToast("連線逾時，請檢查網路狀況", "warning"); }
-                        else { if (isManual) showToast(`儲存失敗: ${e.message}`, "error"); }
+                        if (e.code === 'permission-denied') { setPermissionError(true); if (!isOverwrite) showToast("儲存失敗：權限不足", "error"); }
+                        else if (e.message === "Save timeout") { if (!isOverwrite) showToast("連線逾時，請檢查網路狀況", "warning"); }
+                        else { if (!isOverwrite) showToast(`儲存失敗: ${e.message}`, "error"); }
                         resolve(false);
                     } finally { setIsSaving(false); }
                 });
@@ -424,18 +481,73 @@
                 setCurrentUser(null); setSelectedTool(null);
             };
 
-            const handleCellClick = (userName, dateStr) => {
+            // Mouse Events for Drag
+            const handleCellMouseDown = (e, userName, dateStr) => {
                 if (!selectedTool) {
+                    // Normal click behavior if no tool selected
                     const currentShift = schedule[userName]?.[dateStr];
                     setActiveCell({ user: userName, dateStr, currentShift });
                     return;
                 }
-                const newSchedule = { ...schedule };
+                
+                // Start Drag
+                dragStartRef.current = true;
+                setIsDragging(true);
+                tempScheduleRef.current = {}; // Reset temp
+                
+                applyToolToCell(userName, dateStr); // Apply to first cell
+            };
+
+            const handleCellMouseEnter = (e, userName, dateStr) => {
+                if (dragStartRef.current && selectedTool) {
+                    applyToolToCell(userName, dateStr);
+                }
+            };
+
+            const applyToolToCell = (userName, dateStr) => {
+                // Update local visual state first
+                const newSchedule = { ...schedule }; // Use current schedule as base
+                // Merge with temp updates so far
+                Object.keys(tempScheduleRef.current).forEach(u => {
+                    newSchedule[u] = { ...newSchedule[u], ...tempScheduleRef.current[u] };
+                });
+
                 const userSchedule = { ...(newSchedule[userName] || {}) };
-                if (selectedTool === 'ERASER') delete userSchedule[dateStr];
-                else userSchedule[dateStr] = selectedTool;
+                if (selectedTool === 'ERASER') {
+                    delete userSchedule[dateStr];
+                } else {
+                    userSchedule[dateStr] = selectedTool;
+                }
+                
+                // Update temp ref for final save
+                if (!tempScheduleRef.current[userName]) tempScheduleRef.current[userName] = {};
+                if (selectedTool === 'ERASER') {
+                    // Mark as deleted - trick: use specific value or handle in merge?
+                    // In flat map merge, we can't easily "delete" key from object. 
+                    // Simple hack: We update React state directly for visuals.
+                    // For tempRef, we store the *result* state of that user's schedule for that day?
+                    // No, tempRef stores pending changes. 
+                    // Let's just update the React state `schedule` directly during drag for smoothness,
+                    // and also update `tempScheduleRef` to know what changed.
+                    // But wait, updating state triggers re-render, which is what we want.
+                }
+
+                // Actually, for simplicity and performance in this specific app structure:
+                // Just update the React state immediately.
+                // But don't call saveToDb yet.
+                // We need to know *what* to save on MouseUp.
+                // We will rely on `schedule` state being updated.
+                
+                // Optimized approach: Update State. 
                 newSchedule[userName] = userSchedule;
-                saveToDb({ schedule: newSchedule });
+                setSchedule(newSchedule); // Visual update
+                
+                // Record change for log/save
+                if (!tempScheduleRef.current[userName]) tempScheduleRef.current[userName] = {};
+                 // Logic for delete in merge? Firestore `setDoc` with merge replaces fields. 
+                 // To delete a field, we usually use deleteField(). But here we save the whole object for the user map.
+                 // So sending the updated object is fine.
+                 tempScheduleRef.current[userName] = userSchedule;
             };
 
             const toggleTool = (toolId) => { if (selectedTool === toolId) setSelectedTool(null); else setSelectedTool(toolId); };
@@ -445,10 +557,25 @@
                 const { user, dateStr } = activeCell;
                 const newSchedule = { ...schedule };
                 const userSchedule = { ...(newSchedule[user] || {}) };
-                if (shiftId === 'ERASER') delete userSchedule[dateStr];
-                else userSchedule[dateStr] = shiftId;
+                
+                let actionStr = '';
+                if (shiftId === 'ERASER') {
+                    delete userSchedule[dateStr];
+                    actionStr = '清除';
+                } else {
+                    userSchedule[dateStr] = shiftId;
+                    actionStr = `排班: ${SHIFT_TYPES[shiftId].name}`;
+                }
                 newSchedule[user] = userSchedule;
-                saveToDb({ schedule: newSchedule });
+                
+                const logEntry = {
+                    time: new Date().toLocaleString('zh-TW'),
+                    user: currentUser.name,
+                    action: actionStr,
+                    detail: `${user} / ${dateStr}`
+                };
+
+                saveToDb({ schedule: newSchedule }, false, logEntry);
                 setActiveCell(null);
             };
 
@@ -464,7 +591,12 @@
                     action: () => {
                         const newSchedule = { ...schedule };
                         delete newSchedule[userName];
-                        saveToDb({ schedule: newSchedule });
+                        saveToDb({ schedule: newSchedule }, false, {
+                            time: new Date().toLocaleString('zh-TW'),
+                            user: currentUser.name,
+                            action: '清除人員紀錄',
+                            detail: `清除了 ${userName} 的所有排班`
+                        });
                         setConfirmModal({ show: false });
                     }
                 });
@@ -509,7 +641,12 @@
                         }
                     }
                     newSchedule[targetUser] = userSch;
-                    saveToDb({ schedule: newSchedule, rotationCycles: newCycles });
+                    saveToDb({ schedule: newSchedule, rotationCycles: newCycles }, false, {
+                        time: new Date().toLocaleString('zh-TW'),
+                        user: currentUser.name,
+                        action: '自動排班 (4-2)',
+                        detail: `${targetUser} 從 ${autoStartDate}`
+                    });
                 } else if (autoRule === 'week-night') {
                     const newWNCycles = { ...weekNightCycles };
                     const userWNCycles = newWNCycles[targetUser] || [];
@@ -523,35 +660,17 @@
                         current.setDate(current.getDate() + 1);
                     }
                     newSchedule[targetUser] = userSch;
-                    saveToDb({ schedule: newSchedule, weekNightCycles: newWNCycles });
+                    saveToDb({ schedule: newSchedule, weekNightCycles: newWNCycles }, false, {
+                        time: new Date().toLocaleString('zh-TW'),
+                        user: currentUser.name,
+                        action: '自動排班 (小夜)',
+                        detail: `${targetUser} 從 ${autoStartDate}`
+                    });
                 }
                 setShowAutoFill(false);
             };
 
-            const isDateInRotationCycle = (user, date) => {
-                const cycles = rotationCycles[user];
-                if (!cycles) return false;
-                const d = new Date(date).getTime();
-                return cycles.some(cycle => {
-                    const s = new Date(cycle.start).getTime();
-                    const e = new Date(cycle.end).getTime();
-                    return d >= s && d <= e;
-                });
-            };
-            const isDateInWeekNightCycle = (user, date) => {
-                const cycles = weekNightCycles[user];
-                if (!cycles) return false;
-                const d = new Date(date).getTime();
-                return cycles.some(cycle => {
-                    const s = new Date(cycle.start).getTime();
-                    const e = new Date(cycle.end).getTime();
-                    return d >= s && d <= e;
-                });
-            };
-
-            // Prepare Days Array with Month Headers logic
-            // We need to group by Month
-            const daysData = useMemo(() => {
+            const days = (() => {
                 const arr = [];
                 for (let i = 0; i < 30; i++) {
                     const date = new Date(viewStartDate);
@@ -566,39 +685,29 @@
                     });
                 }
                 return arr;
-            }, [viewStartDate]);
+            })();
 
-            // Group days by month for the header
             const monthGroups = useMemo(() => {
                 const groups = [];
-                if (daysData.length === 0) return groups;
-                
-                let currentMonth = daysData[0].monthLabel;
+                if (days.length === 0) return groups;
+                let currentMonth = days[0].monthLabel;
                 let count = 0;
-                
-                daysData.forEach(day => {
-                    if (day.monthLabel === currentMonth) {
-                        count++;
-                    } else {
-                        groups.push({ label: currentMonth, count });
-                        currentMonth = day.monthLabel;
-                        count = 1;
-                    }
+                days.forEach(day => {
+                    if (day.monthLabel === currentMonth) { count++; } 
+                    else { groups.push({ label: currentMonth, count }); currentMonth = day.monthLabel; count = 1; }
                 });
                 groups.push({ label: currentMonth, count });
                 return groups;
-            }, [daysData]);
+            }, [days]);
 
-
-            // --- Excel Export ---
             const handleExport = () => {
                 if (!schedule) return;
                 const exportData = [];
-                const header = ['姓名', ...daysData.map(d => d.dateStr)];
+                const header = ['姓名', ...days.map(d => d.dateStr)];
                 exportData.push(header);
                 USER_LIST.forEach(user => {
                     const row = [user.name];
-                    daysData.forEach(day => {
+                    days.forEach(day => {
                         const shiftId = schedule[user.name]?.[day.dateStr];
                         if (shiftId) row.push(getShiftName(shiftId));
                         else row.push(''); 
@@ -642,7 +751,12 @@
                             }
                             newSchedule[userName] = userSch;
                         }
-                        saveToDb({ schedule: newSchedule });
+                        saveToDb({ schedule: newSchedule }, false, {
+                            time: new Date().toLocaleString('zh-TW'),
+                            user: currentUser.name,
+                            action: '匯入 Excel',
+                            detail: '批量更新班表'
+                        });
                         showToast("Excel 匯入成功！", "success");
                     } catch (err) { console.error("Import Error:", err); showToast("匯入失敗，請檢查檔案格式", "error"); } finally { e.target.value = ''; }
                 };
@@ -656,7 +770,17 @@
                     <input type="file" ref={fileInputRef} onChange={handleImport} accept=".xlsx, .xls" style={{ display: 'none' }} />
                     {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-                    {/* 頂部控制區 */}
+                    {permissionError && (
+                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-fade-in">
+                            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border-l-8 border-red-500">
+                                <div className="flex items-center gap-3 mb-4 text-red-600"><AlertTriangle size={32} /><h3 className="text-xl font-black">資料庫權限不足</h3></div>
+                                <p className="text-slate-600 mb-4 leading-relaxed">您的 Firebase Firestore 安全規則目前設為禁止寫入。</p>
+                                <button onClick={() => window.location.reload()} className="w-full py-3 bg-red-600 text-white rounded-xl font-bold shadow-lg hover:bg-red-700 transition">我已修正規則，重新載入</button>
+                            </div>
+                        </div>
+                    )}
+                    {!isConfigured && <div className="bg-red-500 text-white text-center text-xs py-1">尚未設定 Firebase，資料將無法儲存。</div>}
+
                     <header className="z-30 flex-none bg-white/90 backdrop-blur-sm shadow-sm border-b-2 border-stone-200">
                         <div className="w-full overflow-x-auto hide-scrollbar py-3 px-2">
                             <div className="flex items-center gap-3 min-w-max">
@@ -667,34 +791,31 @@
                                     </div>
                                 </div>
                                 <div className="flex gap-2 border-r-2 border-slate-200 pr-3 mr-1">
-                                    <button onClick={() => saveToDb({ schedule, rotationCycles, weekNightCycles }, true)} disabled={isSaving} className={`group relative flex flex-col items-center justify-center p-2 text-white rounded-xl border-2 btn-press active:scale-95 transition shadow-[3px_3px_0px_rgba(21,128,61,1)] ${isSaving ? 'bg-gray-400 border-gray-500 cursor-wait' : 'bg-green-500 border-green-700'}`} title="手動存檔">
-                                        <SaveIcon size={20} /><span className="text-[10px] font-bold mt-0.5">{isSaving ? '...' : '存檔'}</span>
-                                    </button>
-                                    <button onClick={handleLogout} className="group relative flex flex-col items-center justify-center p-2 bg-slate-100 text-slate-600 rounded-xl border-2 border-slate-400 btn-press active:scale-95 transition shadow-[3px_3px_0px_rgba(148,163,184,1)] hover:bg-red-50 hover:text-red-600 hover:border-red-400 hover:shadow-[3px_3px_0px_rgba(239,68,68,1)]" title="登出系統">
-                                        <LogOutIcon size={20} /><span className="text-[10px] font-bold mt-0.5">登出</span>
-                                    </button>
+                                    <button onClick={() => saveToDb({ schedule, rotationCycles, weekNightCycles }, true)} disabled={isSaving} className={`group relative flex flex-col items-center justify-center p-2 text-white rounded-xl border-2 btn-press active:scale-95 transition shadow-[3px_3px_0px_rgba(21,128,61,1)] ${isSaving ? 'bg-gray-400 border-gray-500 cursor-wait' : 'bg-green-500 border-green-700'}`} title="手動存檔"><SaveIcon size={20} /><span className="text-[10px] font-bold mt-0.5">{isSaving ? '...' : '存檔'}</span></button>
+                                    <button onClick={handleLogout} className="group relative flex flex-col items-center justify-center p-2 bg-slate-100 text-slate-600 rounded-xl border-2 border-slate-400 btn-press active:scale-95 transition shadow-[3px_3px_0px_rgba(148,163,184,1)] hover:bg-red-50 hover:text-red-600 hover:border-red-400 hover:shadow-[3px_3px_0px_rgba(239,68,68,1)]" title="登出系統"><LogOutIcon size={20} /><span className="text-[10px] font-bold mt-0.5">登出</span></button>
                                 </div>
                                 <div className="flex items-center bg-white border-2 border-slate-800 rounded-xl px-1 py-1">
                                     <button onClick={prevPeriod} className="p-2 hover:bg-slate-100 rounded-lg transition"><ChevronLeft size={20}/></button>
-                                    <div className="px-3 font-black text-lg text-center text-slate-800 leading-tight min-w-[110px]">
-                                        <span className="text-xs text-slate-400 block">Quick Nav</span>
-                                    </div>
+                                    <div className="px-3 font-black text-lg text-center text-slate-800 leading-tight min-w-[110px]"><span className="text-xs text-slate-400 block">Quick Nav</span></div>
                                     <button onClick={nextPeriod} className="p-2 hover:bg-slate-100 rounded-lg transition"><ChevronRight size={20}/></button>
                                 </div>
                                 <button onClick={goToToday} className="flex flex-col items-center justify-center px-3 py-2 text-slate-800 hover:bg-slate-100 rounded-xl border-0 btn-press active:scale-95 transition" title="回到今天"><CalendarIcon size={24} /></button>
                                 <button onClick={() => setShowInfoModal(true)} className="flex flex-col items-center justify-center px-3 py-2 bg-blue-100 text-blue-800 rounded-xl border-2 border-blue-800 btn-press active:scale-95 transition" title="查看排班規則"><InfoIcon size={18} /><span className="text-[10px] font-bold mt-0.5">規則</span></button>
-                                <button onClick={handleExport} className="flex flex-col items-center justify-center px-3 py-2 bg-emerald-100 text-emerald-800 rounded-xl border-2 border-emerald-800 btn-press active:scale-95 transition" title="匯出目前畫面為 Excel"><DownloadIcon size={18} /><span className="text-[10px] font-bold mt-0.5">匯出</span></button>
-                                <button onClick={handleImportClick} className="flex flex-col items-center justify-center px-3 py-2 bg-sky-100 text-sky-800 rounded-xl border-2 border-sky-800 btn-press active:scale-95 transition" title="從 Excel 匯入排班"><UploadIcon size={18} /><span className="text-[10px] font-bold mt-0.5">匯入</span></button>
+                                <button onClick={handleExport} className="flex flex-col items-center justify-center px-3 py-2 bg-emerald-100 text-emerald-800 rounded-xl border-2 border-emerald-800 btn-press active:scale-95 transition" title="匯出 Excel"><DownloadIcon size={18} /><span className="text-[10px] font-bold mt-0.5">匯出</span></button>
+                                <button onClick={handleImportClick} className="flex flex-col items-center justify-center px-3 py-2 bg-sky-100 text-sky-800 rounded-xl border-2 border-sky-800 btn-press active:scale-95 transition" title="匯入 Excel"><UploadIcon size={18} /><span className="text-[10px] font-bold mt-0.5">匯入</span></button>
                                 <div className="w-0.5 h-10 bg-slate-200 mx-1"></div>
                                 <button onClick={() => toggleTool(TOOL_ERASER.id)} className={`group relative flex flex-row items-center justify-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none ${selectedTool === TOOL_ERASER.id ? 'scale-105 z-10 -translate-y-1 ' + TOOL_ERASER.color.replace('border-', 'border-slate-900 ') : 'bg-white border-slate-200 hover:border-slate-800 hover:-translate-y-0.5 opacity-90 hover:opacity-100'}`}>
                                     <span className="text-xl filter drop-shadow-sm">{TOOL_ERASER.icon}</span><span className={`text-base font-bold ${selectedTool === TOOL_ERASER.id ? 'text-slate-900' : 'text-slate-700'}`}>{TOOL_ERASER.name}</span>{selectedTool === TOOL_ERASER.id && (<div className="absolute -top-2 -right-2 bg-slate-900 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center border-2 border-white">✓</div>)}
                                 </button>
                                 {Object.values(SHIFT_TYPES).filter(t => t.id !== 'REST' && t.id !== 'NORMAL').map(type => (
                                     <button key={type.id} onClick={() => toggleTool(type.id)} draggable="false" className={`group relative flex flex-row items-center justify-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none ${selectedTool === type.id ? 'scale-105 z-10 -translate-y-1 shadow-md ' : 'bg-white hover:bg-slate-50 hover:-translate-y-0.5 opacity-90 hover:opacity-100 shadow-sm border border-slate-200'}`}>
-                                        <span className="text-2xl filter drop-shadow-sm leading-none">{type.icon}</span>{selectedTool === type.id && (<div className="absolute -top-2 -right-2 bg-slate-900 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center border-2 border-white">✓</div>)}
+                                        <span className="text-2xl filter drop-shadow-sm leading-none mr-1">{type.icon}</span><span className={`text-xs font-bold ${selectedTool === type.id ? 'text-slate-800' : 'text-slate-700'}`}>{type.name}</span>{selectedTool === type.id && (<div className="absolute -top-2 -right-2 bg-slate-900 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center border-2 border-white">✓</div>)}
                                     </button>
                                 ))}
-                                <div className="ml-auto pl-4 border-l-2 border-slate-200 flex flex-col items-end"><div className="flex items-center gap-1 text-sm font-bold text-slate-800"><span className="bg-yellow-200 px-1 rounded text-xs">Hi</span>{currentUser.name}</div>{lastModifiedInfo && (<div className="text-[10px] text-slate-400 whitespace-nowrap">Update: {lastModifiedInfo.by} {lastModifiedInfo.at}</div>)}</div>
+                                <div className="ml-auto pl-4 border-l-2 border-slate-200 flex flex-col items-end">
+                                    <div className="flex items-center gap-1 text-sm font-bold text-slate-800"><span className="bg-yellow-200 px-1 rounded text-xs">Hi</span>{currentUser.name}</div>
+                                    <button onClick={() => setShowLogModal(true)} className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-blue-600 mt-1 px-2 py-0.5 bg-white border border-slate-200 rounded-lg hover:border-blue-300 transition"><ScrollTextIcon size={10} /> 📜 紀錄</button>
+                                </div>
                             </div>
                         </div>
                     </header>
@@ -704,26 +825,17 @@
                         <div className="flex-1 overflow-auto" ref={scrollRef}>
                             <table className="border-collapse w-full min-w-max">
                                 <thead className="sticky top-0 z-20 bg-stone-50 shadow-sm">
-                                    {/* 月份分界列 */}
                                     <tr>
                                         <th className="bg-stone-100 border-b border-r border-stone-300 min-w-[140px]"></th>
-                                        {monthGroups.map((group, idx) => (
-                                            <th key={idx} colSpan={group.count} className="bg-slate-800 text-white border-r border-slate-600 py-1 text-center font-bold text-sm tracking-wider">
-                                                {group.label}
-                                            </th>
-                                        ))}
+                                        {monthGroups.map((group, idx) => (<th key={idx} colSpan={group.count} className="bg-slate-800 text-white border-r border-slate-600 py-1 text-center font-bold text-sm tracking-wider">{group.label}</th>))}
                                     </tr>
                                     <tr>
                                         <th className="sticky left-0 z-30 bg-stone-100 border-b-2 border-r-2 border-stone-300 min-w-[140px] p-2 text-center font-black text-slate-600 text-xl tracking-widest shadow-[2px_0_5px_rgba(0,0,0,0.05)]">姓名</th>
-                                        {daysData.map(day => (
+                                        {days.map(day => (
                                             <th key={day.dateStr} className={`border-b-2 border-r border-stone-200 min-w-[48px] py-2 text-center relative ${day.holiday ? 'bg-sky-50' : day.isWeekend ? 'bg-rose-50' : 'bg-white'}`}>
                                                 <div className={`text-sm font-bold mb-0.5 ${day.isWeekend || day.holiday ? 'text-rose-600' : 'text-slate-500'}`}>{day.dayOfWeek}</div>
                                                 <div className={`text-xl font-black leading-none ${getDateStr(new Date()) === day.dateStr ? 'text-blue-600 underline decoration-wavy decoration-2' : 'text-slate-800'}`}>
-                                                    {(() => {
-                                                        const payday = getPayday(day.date.getFullYear(), day.date.getMonth());
-                                                        if (getDateStr(day.date) === getDateStr(payday)) return '🏧';
-                                                        return day.dayNum;
-                                                    })()}
+                                                    {(() => { const payday = getPayday(day.date.getFullYear(), day.date.getMonth()); if (getDateStr(day.date) === getDateStr(payday)) return '🏧'; return day.dayNum; })()}
                                                 </div>
                                                 {day.holiday && (<div className="absolute -bottom-2 left-0 w-full flex justify-center z-10"><span className="bg-sky-500 text-white border border-sky-700 text-[10px] px-1.5 py-0.5 rounded-full shadow-sm truncate max-w-full font-bold">{day.holiday}</span></div>)}
                                             </th>
@@ -731,84 +843,78 @@
                                     </tr>
                                     <tr className="bg-stone-100 border-b-2 border-stone-300">
                                         <th className="sticky left-0 z-30 bg-stone-200 border-r-2 border-stone-300 p-2 font-bold text-sm text-slate-600 text-center shadow-[2px_0_5px_rgba(0,0,0,0.05)]">人力配置</th>
-                                        {daysData.map(day => {
+                                        {days.map(day => {
                                             let currentCount = 0;
                                             USER_LIST.forEach(u => {
                                                 const s = schedule[u.name]?.[day.dateStr];
-                                                const isRotationUser = schedule.rotationCycles?.[u.name]?.some(cycle => {
-                                                    const s = new Date(cycle.start).getTime();
-                                                    const e = new Date(cycle.end).getTime();
-                                                    const d = new Date(day.date).getTime();
-                                                    return d >= s && d <= e;
-                                                });
-                                                const isWeekNightUser = schedule.weekNightCycles?.[u.name]?.some(cycle => {
-                                                    const s = new Date(cycle.start).getTime();
-                                                    const e = new Date(cycle.end).getTime();
-                                                    const d = new Date(day.date).getTime();
-                                                    return d >= s && d <= e;
-                                                });
-
-                                                if (s) {
-                                                    if (['EVE_WEEKDAY', 'EVE_WEEKEND', 'ROTATION_A', 'ROTATION_B', 'NORMAL'].includes(s)) currentCount++;
-                                                } else {
-                                                    if (!day.isWeekend && !day.holiday && !isRotationUser && !isWeekNightUser) {
-                                                        currentCount++;
-                                                    }
-                                                }
+                                                const isRotationUser = schedule.rotationCycles?.[u.name]?.some(c => { const s = new Date(c.start).getTime(); const e = new Date(c.end).getTime(); const d = new Date(day.date).getTime(); return d >= s && d <= e; });
+                                                const isWeekNightUser = schedule.weekNightCycles?.[u.name]?.some(c => { const s = new Date(c.start).getTime(); const e = new Date(c.end).getTime(); const d = new Date(day.date).getTime(); return d >= s && d <= e; });
+                                                if (s) { if (['EVE_WEEKDAY', 'EVE_WEEKEND', 'ROTATION_A', 'ROTATION_B', 'ROTATION_C', 'NORMAL'].includes(s)) currentCount++; } 
+                                                else { if (u.type === 'NORMAL' && !day.isWeekend && !day.holiday) currentCount++; }
                                             });
                                             return (<th key={`sum-${day.dateStr}`} className="border-r border-stone-300 text-center py-1 bg-stone-100"><span className={`text-lg font-bold ${currentCount > 0 ? 'text-slate-800' : 'text-slate-300'}`}>{currentCount || '-'}</span></th>);
                                         })}
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {USER_LIST.map((userData, idx) => {
-                                        return (
-                                            <tr key={userData.id} className="group/row bg-white hover:bg-yellow-50/50 transition-colors border-b border-stone-200">
-                                                <td className="sticky left-0 z-10 bg-white group-hover/row:bg-yellow-50/50 border-r-2 border-stone-300 p-0 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
-                                                    <div className="px-3 py-2 h-full group/namecell min-w-[140px] flex justify-center items-center"><span className="font-bold text-slate-800 text-lg tracking-wide">{userData.name}</span></div>
-                                                </td>
-                                                {daysData.map(day => {
-                                                    const shiftId = schedule[userData.name]?.[day.dateStr];
-                                                    const shift = shiftId && SHIFT_TYPES[shiftId] ? SHIFT_TYPES[shiftId] : null;
-                                                    const shiftLabel = getShiftLabel(shift);
-                                                    const isRotationUser = schedule.rotationCycles?.[userData.name]?.some(cycle => {
-                                                        const s = new Date(cycle.start).getTime();
-                                                        const e = new Date(cycle.end).getTime();
-                                                        const d = new Date(day.date).getTime();
-                                                        return d >= s && d <= e;
-                                                    });
-                                                    const isWeekNightUser = schedule.weekNightCycles?.[userData.name]?.some(cycle => {
-                                                        const s = new Date(cycle.start).getTime();
-                                                        const e = new Date(cycle.end).getTime();
-                                                        const d = new Date(day.date).getTime();
-                                                        return d >= s && d <= e;
-                                                    });
-                                                    let bgClass = 'bg-white';
-                                                    if (day.holiday) bgClass = 'bg-sky-50';
-                                                    else if (day.isWeekend) bgClass = 'bg-rose-50';
-                                                    else if (isWeekNightUser) bgClass = 'bg-purple-50';
-                                                    else if (isRotationUser) bgClass = 'bg-green-50';
-                                                    return (
-                                                        <td key={`${userData.name}-${day.dateStr}`} onClick={() => handleCellClick(userData.name, day.dateStr)} className={`border-r border-stone-100 text-center cursor-pointer relative p-1 align-middle hover:bg-slate-100/50 active:bg-slate-200/50 ${bgClass}`}>
-                                                            {shift ? (
-                                                                <div className={`w-full h-11 flex items-center justify-center font-black text-xl transition-transform hover:scale-110 hover:z-10 relative rounded-lg ${shift.color} ${shift.id === 'REST' ? 'bg-stone-100' : ''}`}>{shiftLabel}</div>
-                                                            ) : (
-                                                                <div className="w-full h-10 flex items-center justify-center opacity-0 hover:opacity-30">
-                                                                    {!day.isWeekend && !day.holiday && !isRotationUser && !isWeekNightUser && (<div className="w-1.5 h-1.5 bg-blue-200 rounded-full"></div>)}
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                        );
-                                    })}
+                                    {USER_LIST.map((userData) => (
+                                        <tr key={userData.id} className="group/row bg-white hover:bg-yellow-50/50 transition-colors border-b border-stone-200">
+                                            <td className="sticky left-0 z-10 bg-white group-hover/row:bg-yellow-50/50 border-r-2 border-stone-300 p-0 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
+                                                <div className="px-3 py-2 h-full group/namecell min-w-[140px] flex justify-center items-center"><span className="font-bold text-slate-800 text-lg tracking-wide">{userData.name}</span></div>
+                                            </td>
+                                            {days.map(day => {
+                                                const shiftId = schedule[userData.name]?.[day.dateStr];
+                                                const shift = shiftId && SHIFT_TYPES[shiftId] ? SHIFT_TYPES[shiftId] : null;
+                                                const shiftLabel = getShiftLabel(shift);
+                                                const isRotationUser = schedule.rotationCycles?.[userData.name]?.some(c => { const s = new Date(c.start).getTime(); const e = new Date(c.end).getTime(); const d = new Date(day.date).getTime(); return d >= s && d <= e; });
+                                                const isWeekNightUser = schedule.weekNightCycles?.[userData.name]?.some(c => { const s = new Date(c.start).getTime(); const e = new Date(c.end).getTime(); const d = new Date(day.date).getTime(); return d >= s && d <= e; });
+                                                let bgClass = 'bg-white';
+                                                if (day.holiday) bgClass = 'bg-sky-50';
+                                                else if (day.isWeekend) bgClass = 'bg-rose-50';
+                                                else if (isWeekNightUser) bgClass = 'bg-purple-50';
+                                                else if (isRotationUser) bgClass = 'bg-green-50';
+                                                return (
+                                                    <td 
+                                                        key={`${userData.name}-${day.dateStr}`} 
+                                                        onMouseDown={(e) => handleCellMouseDown(e, userData.name, day.dateStr)}
+                                                        onMouseEnter={(e) => handleCellMouseEnter(e, userData.name, day.dateStr)}
+                                                        className={`border-r border-stone-100 text-center cursor-pointer relative p-1 align-middle hover:bg-slate-100/50 active:bg-slate-200/50 ${bgClass}`}
+                                                    >
+                                                        {shift ? (
+                                                            <div className={`w-full h-11 flex items-center justify-center font-black text-xl transition-transform hover:scale-110 hover:z-10 relative rounded-lg ${shift.color} ${shift.id === 'REST' ? 'bg-stone-100' : ''}`}>{shiftLabel}</div>
+                                                        ) : (
+                                                            <div className="w-full h-10 flex items-center justify-center opacity-0 hover:opacity-30">
+                                                                {userData.type === 'NORMAL' && !day.isWeekend && !day.holiday && (<div className="w-1.5 h-1.5 bg-blue-200 rounded-full"></div>)}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
-                    {/* Cell Menu Modal */}
+                    {showLogModal && (
+                        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[90] flex items-center justify-center p-4" onClick={() => setShowLogModal(false)}>
+                            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border-2 border-slate-800 relative max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                                <div className="flex justify-between items-center mb-4 border-b pb-2"><h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><ScrollTextIcon size={24} className="text-blue-600" /> 修改紀錄 (最近20筆)</h3><button onClick={() => setShowLogModal(false)}><XIcon size={24} className="text-slate-400" /></button></div>
+                                <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                                    {changeLogs.length === 0 ? <p className="text-center text-slate-400 py-4">尚無紀錄</p> : changeLogs.map((log, idx) => (
+                                        <div key={idx} className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm">
+                                            <div className="flex justify-between text-xs text-slate-400 mb-1"><span>{log.time}</span><span className="font-bold text-slate-600">{log.user}</span></div>
+                                            <div className="font-bold text-slate-800">{log.action}</div>
+                                            <div className="text-slate-500 mt-1">{log.detail}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Existing Modals ... */}
                     {activeCell && (
                         <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setActiveCell(null)}>
                             <div className="bg-white rounded-xl shadow-xl p-4 w-full max-w-sm border-2 border-slate-800 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
@@ -831,7 +937,6 @@
                             </div>
                         </div>
                     )}
-
                     {showAutoFill && (
                         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
                             <div className="bg-yellow-100 rounded-lg shadow-lg max-w-sm w-full p-6 border-2 border-slate-900 relative rotate-1">
@@ -855,7 +960,6 @@
                             </div>
                         </div>
                     )}
-
                     {showInfoModal && (
                         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={() => setShowInfoModal(false)}>
                             <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 border-2 border-slate-800 relative" onClick={e => e.stopPropagation()}>
@@ -880,7 +984,6 @@
                             </div>
                         </div>
                     )}
-
                     {confirmModal.show && (
                         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
                             <div className="bg-white rounded-lg shadow-lg max-w-sm w-full p-6 border-2 border-slate-800 animate-in zoom-in-95 duration-200 -rotate-1">
