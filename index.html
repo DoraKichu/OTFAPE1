@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>班表手帳 2025-2026 (雲端同步版 v3.8.1)</title>
+    <title>班表手帳 2025-2026 (雲端同步版 v3.9.2)</title>
     
     <!-- 引入 React 和 ReactDOM -->
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -143,6 +143,7 @@
             EVE_WEEKEND: { id: 'EVE_WEEKEND', name: '假日夜', time: '15:00-24:00', color: 'bg-gray-200 text-gray-800 border-gray-300 shadow-sm', icon: '🌚' },
             ROTATION_A: { id: 'ROTATION_A', name: 'A班', time: '07:20-19:20', color: 'bg-green-200 text-green-900 border-green-300 shadow-sm', icon: '🅰️' },
             ROTATION_B: { id: 'ROTATION_B', name: 'B班', time: '07:20-19:20', color: 'bg-yellow-100 text-yellow-900 border-yellow-300 shadow-sm', icon: '🅱️' },
+            // 新增 C班
             ROTATION_C: { id: 'ROTATION_C', name: 'C班', time: '跟值', color: 'bg-cyan-100 text-cyan-900 border-cyan-300 shadow-sm', icon: '👥' },
             LEAVE: { id: 'LEAVE', name: '請假', time: 'OFF', color: 'bg-white border border-slate-200 shadow-sm text-slate-800', icon: '🛌' },
             REST: { id: 'REST', name: '休', time: 'REST', color: 'border-2 border-dashed border-slate-300 text-slate-400', icon: '💤' }
@@ -326,7 +327,7 @@
             
             const [activeCell, setActiveCell] = useState(null);
             const [userStatsModal, setUserStatsModal] = useState(null); 
-            const [showAutoFill, setShowAutoFill] = useState(false); // FIXED: Added missing state
+            const [showAutoFill, setShowAutoFill] = useState(false);
             const [confirmModal, setConfirmModal] = useState({ show: false, title: '', msg: '', action: null, isDangerous: false });
             const [showInfoModal, setShowInfoModal] = useState(false);
             const [showLogModal, setShowLogModal] = useState(false); 
@@ -383,6 +384,7 @@
                 return () => unsubscribe();
             }, [firebaseUser]);
 
+            // Add global mouse up listener for drag end
             useEffect(() => {
                 const handleGlobalMouseUp = () => {
                     if (dragStartRef.current) {
@@ -479,7 +481,10 @@
             };
 
             const handleCellMouseDown = (e, userName, dateStr) => {
-                if (isLocked) return; 
+                if (isLocked) {
+                    showToast("🔒 請先解除鎖定才能編輯喔！", "warning");
+                    return; 
+                }
                 if (!selectedTool) {
                     const currentShift = schedule[userName]?.[dateStr];
                     setActiveCell({ user: userName, dateStr, currentShift });
