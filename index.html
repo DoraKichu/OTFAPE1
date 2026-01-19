@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>班表手帳 2025-2026 (雲端同步版 v3.6.1)</title>
+    <title>班表手帳 2025-2026 (雲端同步版 v3.8.1)</title>
     
     <!-- 引入 React 和 ReactDOM -->
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -91,6 +91,9 @@
         const UploadIcon = (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></IconBase>;
         const DownloadIcon = (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconBase>;
         const ScrollTextIcon = (props) => <IconBase {...props}><path d="M15 12h-5"/><path d="M15 8h-5"/><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/></IconBase>;
+        const LockIcon = (props) => <IconBase {...props}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></IconBase>;
+        const UnlockIcon = (props) => <IconBase {...props}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></IconBase>;
+        const ChartBarIcon = (props) => <IconBase {...props}><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></IconBase>;
 
         // --- Firebase Configuration ---
         const firebaseConfig = {
@@ -321,14 +324,17 @@
             const dragStartRef = useRef(false);
             const tempScheduleRef = useRef({}); 
             
-            const [activeCell, setActiveCell] = useState(null); 
-            const [showAutoFill, setShowAutoFill] = useState(false);
+            const [activeCell, setActiveCell] = useState(null);
+            const [userStatsModal, setUserStatsModal] = useState(null); 
+            const [showAutoFill, setShowAutoFill] = useState(false); // FIXED: Added missing state
             const [confirmModal, setConfirmModal] = useState({ show: false, title: '', msg: '', action: null, isDangerous: false });
             const [showInfoModal, setShowInfoModal] = useState(false);
             const [showLogModal, setShowLogModal] = useState(false); 
             const [toast, setToast] = useState(null);
             const fileInputRef = useRef(null);
             
+            const [isLocked, setIsLocked] = useState(true);
+
             // Settings for AutoFill
             const [targetUser, setTargetUser] = useState(USER_LIST[0].name);
             const [autoStartDate, setAutoStartDate] = useState(getDateStr(new Date()));
@@ -377,7 +383,6 @@
                 return () => unsubscribe();
             }, [firebaseUser]);
 
-            // Add global mouse up listener for drag end
             useEffect(() => {
                 const handleGlobalMouseUp = () => {
                     if (dragStartRef.current) {
@@ -388,14 +393,12 @@
                             Object.keys(tempScheduleRef.current).forEach(u => {
                                 finalSchedule[u] = { ...finalSchedule[u], ...tempScheduleRef.current[u] };
                             });
-                            
                             const logEntry = {
                                 time: new Date().toLocaleString('zh-TW'),
                                 user: currentUser ? currentUser.name : 'Unknown',
                                 action: '批量修改 (滑鼠拖曳)',
                                 detail: `更新了 ${Object.keys(tempScheduleRef.current).length} 位人員的班表`
                             };
-                            
                             saveToDb({ schedule: finalSchedule }, false, logEntry);
                             tempScheduleRef.current = {}; 
                         }
@@ -476,6 +479,7 @@
             };
 
             const handleCellMouseDown = (e, userName, dateStr) => {
+                if (isLocked) return; 
                 if (!selectedTool) {
                     const currentShift = schedule[userName]?.[dateStr];
                     setActiveCell({ user: userName, dateStr, currentShift });
@@ -488,6 +492,7 @@
             };
 
             const handleCellMouseEnter = (e, userName, dateStr) => {
+                if (isLocked) return; 
                 if (dragStartRef.current && selectedTool) {
                     applyToolToCell(userName, dateStr);
                 }
@@ -561,6 +566,7 @@
                             detail: `清除了 ${userName} 的所有排班`
                         });
                         setConfirmModal({ show: false });
+                        setUserStatsModal(null); 
                     }
                 });
             };
@@ -663,6 +669,40 @@
                 return groups;
             }, [daysData]);
 
+            const calculateYearlyStats = (userName) => {
+                const year = viewStartDate.getFullYear(); 
+                const stats = {};
+                const user = USER_LIST.find(u => u.name === userName);
+                if (!user) return { stats, year };
+
+                const d = new Date(year, 0, 1);
+                const end = new Date(year, 11, 31);
+                
+                while (d <= end) {
+                    const dateStr = getDateStr(d);
+                    const s = schedule[userName]?.[dateStr];
+                    
+                    if (s) {
+                        stats[s] = (stats[s] || 0) + 1;
+                    } else {
+                        const day = d.getDay();
+                        const isWknd = day === 0 || day === 6;
+                        const isHol = !!HOLIDAYS[dateStr];
+                        
+                        if (user.type === 'NORMAL' && !isWknd && !isHol) {
+                            stats['NORMAL'] = (stats['NORMAL'] || 0) + 1;
+                        }
+                    }
+                    d.setDate(d.getDate() + 1);
+                }
+                return { stats, year };
+            };
+
+            const handleUserClick = (userName) => {
+                const { stats, year } = calculateYearlyStats(userName); 
+                setUserStatsModal({ name: userName, stats, year });
+            };
+
             const handleExport = () => {
                 if (!schedule) return;
                 const exportData = [];
@@ -756,6 +796,16 @@
                                 <button onClick={handleExport} className="flex flex-col items-center justify-center px-3 py-2 bg-emerald-100 text-emerald-800 rounded-xl border-2 border-emerald-800 btn-press active:scale-95 transition" title="匯出 Excel"><DownloadIcon size={18} /><span className="text-[10px] font-bold mt-0.5">匯出</span></button>
                                 <button onClick={handleImportClick} className="flex flex-col items-center justify-center px-3 py-2 bg-sky-100 text-sky-800 rounded-xl border-2 border-sky-800 btn-press active:scale-95 transition" title="匯入 Excel"><UploadIcon size={18} /><span className="text-[10px] font-bold mt-0.5">匯入</span></button>
                                 <div className="w-0.5 h-10 bg-slate-200 mx-1"></div>
+                                {/* 編輯鎖 */}
+                                <button 
+                                    onClick={() => setIsLocked(!isLocked)} 
+                                    className={`flex flex-col items-center justify-center px-3 py-2 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none ${isLocked ? 'bg-red-50 text-red-600 border-red-300' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-500'}`}
+                                    title={isLocked ? "編輯鎖定 (唯讀)" : "點擊可編輯"}
+                                >
+                                    {isLocked ? <LockIcon size={20} /> : <UnlockIcon size={20} />}
+                                    <span className="text-[10px] font-bold mt-0.5">{isLocked ? '鎖定' : '編輯'}</span>
+                                </button>
+                                <div className="w-0.5 h-10 bg-slate-200 mx-1"></div>
                                 <button onClick={() => toggleTool(TOOL_ERASER.id)} className={`group relative flex flex-row items-center justify-center gap-2 px-3 py-2 rounded-xl border-2 transition-all duration-200 cursor-pointer select-none ${selectedTool === TOOL_ERASER.id ? 'scale-105 z-10 -translate-y-1 ' + TOOL_ERASER.color.replace('border-', 'border-slate-900 ') : 'bg-white border-slate-200 hover:border-slate-800 hover:-translate-y-0.5 opacity-90 hover:opacity-100'}`}>
                                     <span className="text-xl filter drop-shadow-sm">{TOOL_ERASER.icon}</span><span className={`text-base font-bold ${selectedTool === TOOL_ERASER.id ? 'text-slate-900' : 'text-slate-700'}`}>{TOOL_ERASER.name}</span>{selectedTool === TOOL_ERASER.id && (<div className="absolute -top-2 -right-2 bg-slate-900 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center border-2 border-white">✓</div>)}
                                 </button>
@@ -798,7 +848,13 @@
                                     {USER_LIST.map((userData) => (
                                         <tr key={userData.id} className="group/row bg-white hover:bg-yellow-50/50 transition-colors border-b border-stone-200">
                                             <td className="sticky left-0 z-10 bg-white group-hover/row:bg-yellow-50/50 border-r-2 border-stone-300 p-0 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
-                                                <div className="px-3 py-2 h-full group/namecell min-w-[140px] flex justify-center items-center"><span className="font-bold text-slate-800 text-lg tracking-wide">{userData.name}</span></div>
+                                                <div 
+                                                    className="px-3 py-2 h-full group/namecell min-w-[140px] flex justify-center items-center cursor-pointer hover:bg-blue-50 transition-colors"
+                                                    onClick={() => handleUserClick(userData.name)}
+                                                    title="點擊查看統計"
+                                                >
+                                                    <span className="font-bold text-slate-800 text-lg tracking-wide">{userData.name}</span>
+                                                </div>
                                             </td>
                                             {daysData.map(day => {
                                                 const shiftId = schedule[userData.name]?.[day.dateStr];
@@ -852,54 +908,39 @@
                         </div>
                     )}
 
-                    {/* Existing Modals ... */}
-                    {activeCell && (
-                        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setActiveCell(null)}>
-                            <div className="bg-white rounded-xl shadow-xl p-4 w-full max-w-sm border-2 border-slate-800 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-200">
-                                    <div className="flex flex-col"><span className="text-xs font-bold text-slate-400">當日排班設定</span><span className="text-xl font-black text-slate-800">{activeCell.user} <span className="text-slate-400 mx-1">/</span> {activeCell.dateStr}</span></div>
-                                    <button onClick={() => setActiveCell(null)} className="p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100"><XIcon size={24} /></button>
+                    {/* User Stats Modal */}
+                    {userStatsModal && (
+                        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[80] flex items-center justify-center p-4" onClick={() => setUserStatsModal(null)}>
+                            <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 border-2 border-slate-800 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-between items-center mb-6 border-b pb-2">
+                                    <h3 className="text-2xl font-black text-slate-800 flex items-center gap-2"><ChartBarIcon size={24} className="text-blue-600" />{userStatsModal.name} 統計</h3>
+                                    <button onClick={() => setUserStatsModal(null)} className="p-1 text-slate-400 hover:text-slate-600"><XIcon size={24} /></button>
                                 </div>
-                                <div className="grid grid-cols-3 gap-3 mb-4">
-                                    {Object.values(SHIFT_TYPES).filter(t => t.id !== 'REST' && t.id !== 'NORMAL').map(type => (
-                                        <button key={type.id} onClick={() => applyShiftFromModal(type.id)} className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all btn-press ${activeCell.currentShift === type.id ? 'border-slate-800 bg-slate-50 ring-2 ring-slate-800 ring-offset-1' : 'border-slate-200 bg-white hover:border-slate-400'}`}>
-                                            <div className="text-3xl mb-1">{type.icon}</div>
-                                            <span className="text-sm font-bold text-slate-700">{type.name}</span>
-                                        </button>
-                                    ))}
+                                <div className="space-y-3 mb-6">
+                                    <p className="text-sm text-slate-400 font-bold mb-2">{userStatsModal.year} 年全年度統計</p>
+                                    {Object.keys(userStatsModal.stats).length === 0 ? <p className="text-center text-slate-400">此年度無排班紀錄</p> : 
+                                        Object.entries(userStatsModal.stats).map(([key, count]) => (
+                                            <div key={key} className="flex justify-between items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-2xl">{SHIFT_TYPES[key]?.icon}</span>
+                                                    <span className="font-bold text-slate-700">{SHIFT_TYPES[key]?.name}</span>
+                                                </div>
+                                                <span className="font-black text-xl text-slate-800">{count} <span className="text-xs text-slate-400 font-normal">天</span></span>
+                                            </div>
+                                        ))
+                                    }
                                 </div>
-                                <div className="flex gap-3 pt-2 border-t border-slate-200">
-                                    <button onClick={() => applyShiftFromModal('ERASER')} className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-slate-300 text-slate-600 font-bold hover:bg-slate-50 btn-press"><Trash2 size={18} />清除當日</button>
-                                    <button onClick={openAutoFillFromCell} className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-slate-800 bg-yellow-100 text-slate-900 font-bold hover:bg-yellow-200 btn-press"><Zap size={18} fill="currentColor" className="text-yellow-600" />從此排班</button>
-                                </div>
+                                <button 
+                                    onClick={() => confirmClearUser(userStatsModal.name)}
+                                    className="w-full py-3 bg-red-50 text-red-600 rounded-xl font-bold border-2 border-red-200 hover:bg-red-100 transition flex items-center justify-center gap-2"
+                                >
+                                    <Trash2 size={18} /> 清除此人紀錄
+                                </button>
                             </div>
                         </div>
                     )}
 
-                    {showAutoFill && (
-                        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                            <div className="bg-yellow-100 rounded-lg shadow-lg max-w-sm w-full p-6 border-2 border-slate-900 relative rotate-1">
-                                <button onClick={() => setShowAutoFill(false)} className="absolute -top-3 -right-3 bg-white border-2 border-slate-900 rounded-full p-1 hover:rotate-90 transition text-slate-900 shadow-sm"><XIcon size={20} /></button>
-                                <h3 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2 border-b-2 border-slate-900 border-dashed pb-2"><Zap className="text-orange-500 fill-current" />自動排班魔法</h3>
-                                <div className="space-y-4">
-                                    <div><label className="text-lg font-bold text-slate-700">對象與開始日</label><div className="p-3 bg-white border-2 border-slate-400 rounded-lg flex justify-between items-center"><span className="font-bold text-xl text-slate-800">{targetUser}</span><span className="text-sm font-bold text-slate-500">{autoStartDate} 起</span></div></div>
-                                    <div>
-                                        <label className="text-lg font-bold text-slate-700">規則是？</label>
-                                        <div className="mt-1 grid grid-cols-1 gap-2">
-                                            <button onClick={() => { setAutoRule('4-2'); setAutoShiftType('ROTATION_A'); }} className={`p-3 rounded-lg border-2 text-left transition-all flex items-center gap-3 btn-press ${autoRule === '4-2' ? 'border-orange-600 bg-orange-100 text-slate-900' : 'border-slate-300 bg-white text-slate-500'}`}><div className="font-bold text-lg">四班二輪</div><div className="text-sm font-bold bg-white px-2 rounded border border-slate-300">做2休2</div></button>
-                                            <button onClick={() => { setAutoRule('week-night'); setAutoShiftType('EVE_WEEKDAY'); }} className={`p-3 rounded-lg border-2 text-left transition-all flex items-center gap-3 btn-press ${autoRule === 'week-night' ? 'border-violet-600 bg-violet-100 text-slate-900' : 'border-slate-300 bg-white text-slate-500'}`}><div className="font-bold text-lg">平日小夜</div><div className="text-sm font-bold bg-white px-2 rounded border border-slate-300">週六休</div></button>
-                                        </div>
-                                    </div>
-                                    <div className="mt-4 p-4 bg-white/50 rounded-lg border-2 border-slate-300 border-dashed">
-                                        {autoRule === '4-2' && (<div className="animate-in fade-in slide-in-from-top-2 space-y-3"><div><label className="text-lg font-bold text-slate-700 block mb-1">幾個回合？</label><div className="flex items-center gap-2"><input type="number" min="1" max="50" value={autoRounds} onChange={e => setAutoRounds(Number(e.target.value))} className="w-20 bg-white border-2 border-slate-400 rounded p-1 text-center font-bold text-2xl text-slate-800 outline-none focus:border-slate-900" /><span className="text-lg font-bold text-slate-500">= <span className="text-slate-800">{autoRounds * 4}</span> 天</span></div></div><div><label className="text-lg font-bold text-slate-700 block mb-1">班別</label><div className="flex gap-2"><button onClick={() => setAutoShiftType('ROTATION_A')} className={`flex-1 py-2 rounded-lg text-lg font-bold border-2 btn-press ${autoShiftType === 'ROTATION_A' ? 'bg-orange-500 text-white border-orange-700' : 'bg-white text-slate-500 border-slate-300'}`}>A班</button><button onClick={() => setAutoShiftType('ROTATION_B')} className={`flex-1 py-2 rounded-lg text-lg font-bold border-2 btn-press ${autoShiftType === 'ROTATION_B' ? 'bg-teal-500 text-white border-teal-700' : 'bg-white text-slate-500 border-slate-300'}`}>B班</button></div></div></div>)}
-                                        {autoRule === 'week-night' && (<div className="animate-in fade-in slide-in-from-top-2"><label className="text-lg font-bold text-slate-700 block mb-1">持續幾週？</label><div className="flex items-center gap-2"><input type="number" min="1" max="52" value={autoWeeksDuration} onChange={e => setAutoWeeksDuration(Number(e.target.value))} className="w-20 bg-white border-2 border-slate-400 rounded p-1 text-center font-bold text-2xl text-slate-800" /><span className="text-lg font-bold text-slate-500">週</span></div></div>)}
-                                    </div>
-                                </div>
-                                <div className="mt-6 flex gap-3"><button onClick={() => setShowAutoFill(false)} className="flex-1 py-3 rounded-lg font-bold border-2 border-slate-400 text-slate-500 hover:bg-slate-100 transition btn-press">算了吧</button><button onClick={runAutoFill} className="flex-1 py-3 rounded-lg font-bold border-2 border-slate-800 bg-slate-800 text-white hover:bg-slate-700 btn-press transition">寫入！</button></div>
-                            </div>
-                        </div>
-                    )}
-
+                    {/* Info Modal (規則備忘錄) */}
                     {showInfoModal && (
                         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={() => setShowInfoModal(false)}>
                             <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 border-2 border-slate-800 relative" onClick={e => e.stopPropagation()}>
@@ -931,6 +972,52 @@
                                 <h3 className="text-2xl font-bold text-slate-800 mb-2">{confirmModal.title}</h3>
                                 <p className="text-lg text-slate-600 mb-8 leading-relaxed">{confirmModal.msg}</p>
                                 <div className="flex gap-3"><button onClick={() => setConfirmModal({ show: false })} className="flex-1 py-3 rounded-lg border-2 border-slate-300 text-slate-600 font-bold hover:bg-slate-50 transition btn-press">取消</button><button onClick={confirmModal.action} className={`flex-1 py-3 rounded-lg text-white font-bold border-2 border-slate-800 btn-press transition ${confirmModal.isDangerous ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'}`}>確定</button></div>
+                            </div>
+                        </div>
+                    )}
+                    {/* Cell Menu Modal - 只有在未鎖定時才允許點擊觸發 (已在 handleCellClick 阻擋) */}
+                    {activeCell && !isLocked && (
+                        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setActiveCell(null)}>
+                            <div className="bg-white rounded-xl shadow-xl p-4 w-full max-w-sm border-2 border-slate-800 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-200">
+                                    <div className="flex flex-col"><span className="text-xs font-bold text-slate-400">當日排班設定</span><span className="text-xl font-black text-slate-800">{activeCell.user} <span className="text-slate-400 mx-1">/</span> {activeCell.dateStr}</span></div>
+                                    <button onClick={() => setActiveCell(null)} className="p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100"><XIcon size={24} /></button>
+                                </div>
+                                <div className="grid grid-cols-3 gap-3 mb-4">
+                                    {Object.values(SHIFT_TYPES).filter(t => t.id !== 'REST' && t.id !== 'NORMAL').map(type => (
+                                        <button key={type.id} onClick={() => applyShiftFromModal(type.id)} className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all btn-press ${activeCell.currentShift === type.id ? 'border-slate-800 bg-slate-50 ring-2 ring-slate-800 ring-offset-1' : 'border-slate-200 bg-white hover:border-slate-400'}`}>
+                                            <div className="text-3xl mb-1">{type.icon}</div>
+                                            <span className="text-sm font-bold text-slate-700">{type.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex gap-3 pt-2 border-t border-slate-200">
+                                    <button onClick={() => applyShiftFromModal('ERASER')} className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-slate-300 text-slate-600 font-bold hover:bg-slate-50 btn-press"><Trash2 size={18} />清除當日</button>
+                                    <button onClick={openAutoFillFromCell} className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-slate-800 bg-yellow-100 text-slate-900 font-bold hover:bg-yellow-200 btn-press"><Zap size={18} fill="currentColor" className="text-yellow-600" />從此排班</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    {showAutoFill && (
+                        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                            <div className="bg-yellow-100 rounded-lg shadow-lg max-w-sm w-full p-6 border-2 border-slate-900 relative rotate-1">
+                                <button onClick={() => setShowAutoFill(false)} className="absolute -top-3 -right-3 bg-white border-2 border-slate-900 rounded-full p-1 hover:rotate-90 transition text-slate-900 shadow-sm"><XIcon size={20} /></button>
+                                <h3 className="text-2xl font-black text-slate-800 mb-6 flex items-center gap-2 border-b-2 border-slate-900 border-dashed pb-2"><Zap className="text-orange-500 fill-current" />自動排班魔法</h3>
+                                <div className="space-y-4">
+                                    <div><label className="text-lg font-bold text-slate-700">對象與開始日</label><div className="p-3 bg-white border-2 border-slate-400 rounded-lg flex justify-between items-center"><span className="font-bold text-xl text-slate-800">{targetUser}</span><span className="text-sm font-bold text-slate-500">{autoStartDate} 起</span></div></div>
+                                    <div>
+                                        <label className="text-lg font-bold text-slate-700">規則是？</label>
+                                        <div className="mt-1 grid grid-cols-1 gap-2">
+                                            <button onClick={() => { setAutoRule('4-2'); setAutoShiftType('ROTATION_A'); }} className={`p-3 rounded-lg border-2 text-left transition-all flex items-center gap-3 btn-press ${autoRule === '4-2' ? 'border-orange-600 bg-orange-100 text-slate-900' : 'border-slate-300 bg-white text-slate-500'}`}><div className="font-bold text-lg">四班二輪</div><div className="text-sm font-bold bg-white px-2 rounded border border-slate-300">做2休2</div></button>
+                                            <button onClick={() => { setAutoRule('week-night'); setAutoShiftType('EVE_WEEKDAY'); }} className={`p-3 rounded-lg border-2 text-left transition-all flex items-center gap-3 btn-press ${autoRule === 'week-night' ? 'border-violet-600 bg-violet-100 text-slate-900' : 'border-slate-300 bg-white text-slate-500'}`}><div className="font-bold text-lg">平日小夜</div><div className="text-sm font-bold bg-white px-2 rounded border border-slate-300">週六休</div></button>
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 p-4 bg-white/50 rounded-lg border-2 border-slate-300 border-dashed">
+                                        {autoRule === '4-2' && (<div className="animate-in fade-in slide-in-from-top-2 space-y-3"><div><label className="text-lg font-bold text-slate-700 block mb-1">幾個回合？</label><div className="flex items-center gap-2"><input type="number" min="1" max="50" value={autoRounds} onChange={e => setAutoRounds(Number(e.target.value))} className="w-20 bg-white border-2 border-slate-400 rounded p-1 text-center font-bold text-2xl text-slate-800 outline-none focus:border-slate-900" /><span className="text-lg font-bold text-slate-500">= <span className="text-slate-800">{autoRounds * 4}</span> 天</span></div></div><div><label className="text-lg font-bold text-slate-700 block mb-1">班別</label><div className="flex gap-2"><button onClick={() => setAutoShiftType('ROTATION_A')} className={`flex-1 py-2 rounded-lg text-lg font-bold border-2 btn-press ${autoShiftType === 'ROTATION_A' ? 'bg-orange-500 text-white border-orange-700' : 'bg-white text-slate-500 border-slate-300'}`}>A班</button><button onClick={() => setAutoShiftType('ROTATION_B')} className={`flex-1 py-2 rounded-lg text-lg font-bold border-2 btn-press ${autoShiftType === 'ROTATION_B' ? 'bg-teal-500 text-white border-teal-700' : 'bg-white text-slate-500 border-slate-300'}`}>B班</button></div></div></div>)}
+                                        {autoRule === 'week-night' && (<div className="animate-in fade-in slide-in-from-top-2"><label className="text-lg font-bold text-slate-700 block mb-1">持續幾週？</label><div className="flex items-center gap-2"><input type="number" min="1" max="52" value={autoWeeksDuration} onChange={e => setAutoWeeksDuration(Number(e.target.value))} className="w-20 bg-white border-2 border-slate-400 rounded p-1 text-center font-bold text-2xl text-slate-800" /><span className="text-lg font-bold text-slate-500">週</span></div></div>)}
+                                    </div>
+                                </div>
+                                <div className="mt-6 flex gap-3"><button onClick={() => setShowAutoFill(false)} className="flex-1 py-3 rounded-lg font-bold border-2 border-slate-400 text-slate-500 hover:bg-slate-100 transition btn-press">算了吧</button><button onClick={runAutoFill} className="flex-1 py-3 rounded-lg font-bold border-2 border-slate-800 bg-slate-800 text-white hover:bg-slate-700 btn-press transition">寫入！</button></div>
                             </div>
                         </div>
                     )}
