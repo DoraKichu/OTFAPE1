@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>班表手帳 2025-2026 (雲端同步版 v3.9.2)</title>
+    <title>班表手帳 2025-2026 (雲端同步版 v4.1.1)</title>
     
     <!-- 引入 React 和 ReactDOM -->
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -126,25 +126,38 @@
         const USER_LIST = [
             { id: 'v02455', name: '周哲維', type: 'NORMAL' },
             { id: 'v02457', name: '陳泓廷', type: 'NORMAL' },
-            { id: 'v03111', name: '王泓凱', type: 'ROTATION' },
-            { id: 'v03369', name: '陳嘉軒', type: 'ROTATION' },
-            { id: 'v04151', name: '張皓翔', type: 'ROTATION' },
-            { id: 'v03370', name: '陳浩霖', type: 'ROTATION' },
-            { id: 'v04457', name: '翁子涵', type: 'ROTATION' },
-            { id: 'v03735', name: '趙婉卉', type: 'ROTATION' },
-            { id: 'v03282', name: '游佳憲', type: 'ROTATION' },
-            { id: 'v04463', name: '林明儒', type: 'ROTATION' }
+            { id: 'v03111', name: '王泓凱', type: 'ROTATION' }, // B組 No.1
+            { id: 'v03369', name: '陳嘉軒', type: 'ROTATION' }, // A組 No.1
+            { id: 'v04151', name: '張皓翔', type: 'ROTATION' }, // B組 No.2
+            { id: 'v03370', name: '陳浩霖', type: 'ROTATION' }, // A組 No.2
+            { id: 'v04457', name: '翁子涵', type: 'ROTATION' }, // B組 No.3
+            { id: 'v03735', name: '趙婉卉', type: 'ROTATION' }, // A組 No.3
+            { id: 'v03282', name: '游佳憲', type: 'ROTATION' }, // B組 No.4
+            { id: 'v04463', name: '林明儒', type: 'ROTATION' }  // A組 No.4
         ];
 
-        // 班別設定
+        // 班別設定 - 更新為 日A/B 夜A/B C班
         const SHIFT_TYPES = {
             NORMAL: { id: 'NORMAL', name: '常日', time: '08:30-17:30', color: 'bg-white border border-slate-200 shadow-sm text-slate-800', icon: '☀️' },
+            
+            // 日班 A/B
+            DAY_A: { id: 'DAY_A', name: '日A', time: '07:20-19:20', color: 'bg-green-100 text-green-900 border-green-200 shadow-sm', icon: '☀️A' },
+            DAY_B: { id: 'DAY_B', name: '日B', time: '07:20-19:20', color: 'bg-yellow-100 text-yellow-900 border-yellow-200 shadow-sm', icon: '☀️B' },
+            
+            // 夜班 A/B
+            NIGHT_A: { id: 'NIGHT_A', name: '夜A', time: '19:20-07:20', color: 'bg-purple-100 text-purple-900 border-purple-200 shadow-sm', icon: '🌙A' },
+            NIGHT_B: { id: 'NIGHT_B', name: '夜B', time: '19:20-07:20', color: 'bg-indigo-100 text-indigo-900 border-indigo-200 shadow-sm', icon: '🌙B' },
+            
+            // 平日/假日夜
             EVE_WEEKDAY: { id: 'EVE_WEEKDAY', name: '平日夜', time: '15:00-24:00', color: 'bg-purple-200 text-purple-900 border-purple-300 shadow-sm', icon: '🌝' },
             EVE_WEEKEND: { id: 'EVE_WEEKEND', name: '假日夜', time: '15:00-24:00', color: 'bg-gray-200 text-gray-800 border-gray-300 shadow-sm', icon: '🌚' },
-            ROTATION_A: { id: 'ROTATION_A', name: 'A班', time: '07:20-19:20', color: 'bg-green-200 text-green-900 border-green-300 shadow-sm', icon: '🅰️' },
-            ROTATION_B: { id: 'ROTATION_B', name: 'B班', time: '07:20-19:20', color: 'bg-yellow-100 text-yellow-900 border-yellow-300 shadow-sm', icon: '🅱️' },
-            // 新增 C班
-            ROTATION_C: { id: 'ROTATION_C', name: 'C班', time: '跟值', color: 'bg-cyan-100 text-cyan-900 border-cyan-300 shadow-sm', icon: '👥' },
+
+            // 新增: 小夜
+            LITTLE_NIGHT: { id: 'LITTLE_NIGHT', name: '小夜', time: '16:00-24:00', color: 'bg-pink-100 text-pink-900 border-pink-200 shadow-sm', icon: '🌛' },
+
+            // C班
+            ROTATION_C: { id: 'ROTATION_C', name: 'C班', time: '跟值', color: 'bg-cyan-100 text-cyan-900 border-cyan-200 shadow-sm', icon: '👥' },
+            
             LEAVE: { id: 'LEAVE', name: '請假', time: 'OFF', color: 'bg-white border border-slate-200 shadow-sm text-slate-800', icon: '🛌' },
             REST: { id: 'REST', name: '休', time: 'REST', color: 'border-2 border-dashed border-slate-300 text-slate-400', icon: '💤' }
         };
@@ -193,13 +206,9 @@
             if (!shift) return '';
             if (shift.id === 'LEAVE') return shift.icon;
             if (shift.id === 'REST') return shift.icon;
-            if (shift.id === 'EVE_WEEKDAY') return shift.icon;
-            if (shift.id === 'EVE_WEEKEND') return shift.icon;
-            if (shift.id === 'ROTATION_A') return shift.icon;
-            if (shift.id === 'ROTATION_B') return shift.icon;
-            if (shift.id === 'ROTATION_C') return shift.icon;
             if (shift.id === 'NORMAL') return shift.icon;
-            return shift.name[0];
+            if (shift.icon.length <= 2) return shift.icon; // For simple emojis
+            return shift.name; // For complex names like 日A
         };
 
         const getShiftName = (shiftId) => {
@@ -327,7 +336,7 @@
             
             const [activeCell, setActiveCell] = useState(null);
             const [userStatsModal, setUserStatsModal] = useState(null); 
-            const [showAutoFill, setShowAutoFill] = useState(false);
+            const [showAutoFill, setShowAutoFill] = useState(false); // Fixed missing state
             const [confirmModal, setConfirmModal] = useState({ show: false, title: '', msg: '', action: null, isDangerous: false });
             const [showInfoModal, setShowInfoModal] = useState(false);
             const [showLogModal, setShowLogModal] = useState(false); 
@@ -384,7 +393,6 @@
                 return () => unsubscribe();
             }, [firebaseUser]);
 
-            // Add global mouse up listener for drag end
             useEffect(() => {
                 const handleGlobalMouseUp = () => {
                     if (dragStartRef.current) {
@@ -1018,7 +1026,13 @@
                                         </div>
                                     </div>
                                     <div className="mt-4 p-4 bg-white/50 rounded-lg border-2 border-slate-300 border-dashed">
-                                        {autoRule === '4-2' && (<div className="animate-in fade-in slide-in-from-top-2 space-y-3"><div><label className="text-lg font-bold text-slate-700 block mb-1">幾個回合？</label><div className="flex items-center gap-2"><input type="number" min="1" max="50" value={autoRounds} onChange={e => setAutoRounds(Number(e.target.value))} className="w-20 bg-white border-2 border-slate-400 rounded p-1 text-center font-bold text-2xl text-slate-800 outline-none focus:border-slate-900" /><span className="text-lg font-bold text-slate-500">= <span className="text-slate-800">{autoRounds * 4}</span> 天</span></div></div><div><label className="text-lg font-bold text-slate-700 block mb-1">班別</label><div className="flex gap-2"><button onClick={() => setAutoShiftType('ROTATION_A')} className={`flex-1 py-2 rounded-lg text-lg font-bold border-2 btn-press ${autoShiftType === 'ROTATION_A' ? 'bg-orange-500 text-white border-orange-700' : 'bg-white text-slate-500 border-slate-300'}`}>A班</button><button onClick={() => setAutoShiftType('ROTATION_B')} className={`flex-1 py-2 rounded-lg text-lg font-bold border-2 btn-press ${autoShiftType === 'ROTATION_B' ? 'bg-teal-500 text-white border-teal-700' : 'bg-white text-slate-500 border-slate-300'}`}>B班</button></div></div></div>)}
+                                        {autoRule === '4-2' && (<div className="animate-in fade-in slide-in-from-top-2 space-y-3"><div><label className="text-lg font-bold text-slate-700 block mb-1">幾個回合？</label><div className="flex items-center gap-2"><input type="number" min="1" max="50" value={autoRounds} onChange={e => setAutoRounds(Number(e.target.value))} className="w-20 bg-white border-2 border-slate-400 rounded p-1 text-center font-bold text-2xl text-slate-800 outline-none focus:border-slate-900" /><span className="text-lg font-bold text-slate-500">= <span className="text-slate-800">{autoRounds * 4}</span> 天</span></div></div><div><label className="text-lg font-bold text-slate-700 block mb-1">班別</label><div className="flex gap-2">
+                                            {/* AutoFill buttons updated to use new shifts */}
+                                            <button onClick={() => setAutoShiftType('DAY_A')} className={`flex-1 py-2 rounded-lg text-lg font-bold border-2 btn-press ${autoShiftType === 'DAY_A' ? 'bg-green-500 text-white border-green-700' : 'bg-white text-slate-500 border-slate-300'}`}>日A</button>
+                                            <button onClick={() => setAutoShiftType('DAY_B')} className={`flex-1 py-2 rounded-lg text-lg font-bold border-2 btn-press ${autoShiftType === 'DAY_B' ? 'bg-yellow-500 text-white border-yellow-700' : 'bg-white text-slate-500 border-slate-300'}`}>日B</button>
+                                            <button onClick={() => setAutoShiftType('NIGHT_A')} className={`flex-1 py-2 rounded-lg text-lg font-bold border-2 btn-press ${autoShiftType === 'NIGHT_A' ? 'bg-purple-500 text-white border-purple-700' : 'bg-white text-slate-500 border-slate-300'}`}>夜A</button>
+                                            <button onClick={() => setAutoShiftType('NIGHT_B')} className={`flex-1 py-2 rounded-lg text-lg font-bold border-2 btn-press ${autoShiftType === 'NIGHT_B' ? 'bg-indigo-500 text-white border-indigo-700' : 'bg-white text-slate-500 border-slate-300'}`}>夜B</button>
+                                        </div></div></div>)}
                                         {autoRule === 'week-night' && (<div className="animate-in fade-in slide-in-from-top-2"><label className="text-lg font-bold text-slate-700 block mb-1">持續幾週？</label><div className="flex items-center gap-2"><input type="number" min="1" max="52" value={autoWeeksDuration} onChange={e => setAutoWeeksDuration(Number(e.target.value))} className="w-20 bg-white border-2 border-slate-400 rounded p-1 text-center font-bold text-2xl text-slate-800" /><span className="text-lg font-bold text-slate-500">週</span></div></div>)}
                                     </div>
                                 </div>
