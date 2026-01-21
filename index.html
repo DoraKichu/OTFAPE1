@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>班表手帳 2025-2026 (雲端同步版 v4.1.1)</title>
+    <title>值班表 2025-2026 (雲端同步版 v4.3)</title>
     
     <!-- 引入 React 和 ReactDOM -->
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -336,9 +336,8 @@
             
             const [activeCell, setActiveCell] = useState(null);
             const [userStatsModal, setUserStatsModal] = useState(null); 
-            const [showAutoFill, setShowAutoFill] = useState(false); // Fixed missing state
+            const [showAutoFill, setShowAutoFill] = useState(false);
             const [confirmModal, setConfirmModal] = useState({ show: false, title: '', msg: '', action: null, isDangerous: false });
-            const [showInfoModal, setShowInfoModal] = useState(false);
             const [showLogModal, setShowLogModal] = useState(false); 
             const [toast, setToast] = useState(null);
             const fileInputRef = useRef(null);
@@ -789,10 +788,14 @@
                     <header className="z-30 flex-none bg-white/90 backdrop-blur-sm shadow-sm border-b-2 border-stone-200">
                         <div className="w-full overflow-x-auto hide-scrollbar py-3 px-2">
                             <div className="flex items-center gap-3 min-w-max">
-                                <div className="flex flex-col mr-2 cursor-pointer" onClick={() => { if(!isConnected) showToast('尚未連線至雲端', 'error'); }}>
-                                    <div className="flex items-center gap-2">
-                                        <h1 className="text-2xl font-black text-slate-800 tracking-wider">班表手帳</h1>
+                                <div className="flex flex-col mr-2">
+                                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => { if(!isConnected) showToast('尚未連線至雲端', 'error'); }}>
+                                        <h1 className="text-2xl font-black text-slate-800 tracking-wider">值班表</h1>
                                         <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]'}`} title={isConnected ? "已連線至雲端" : "未連線"}></div>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <div className="flex items-center gap-1 text-sm font-bold text-slate-800"><span className="bg-yellow-200 px-1 rounded text-xs">Hi</span>{currentUser.name}</div>
+                                        <button onClick={() => setShowLogModal(true)} className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-blue-600 px-2 py-0.5 bg-white border border-slate-200 rounded-lg hover:border-blue-300 transition"><ScrollTextIcon size={10} /> 紀錄</button>
                                     </div>
                                 </div>
                                 <div className="flex gap-2 border-r-2 border-slate-200 pr-3 mr-1">
@@ -805,7 +808,6 @@
                                     <button onClick={nextPeriod} className="p-2 hover:bg-slate-100 rounded-lg transition"><ChevronRight size={20}/></button>
                                 </div>
                                 <button onClick={goToToday} className="flex flex-col items-center justify-center px-3 py-2 text-slate-800 hover:bg-slate-100 rounded-xl border-0 btn-press active:scale-95 transition" title="回到今天"><CalendarIcon size={24} /></button>
-                                <button onClick={() => setShowInfoModal(true)} className="flex flex-col items-center justify-center px-3 py-2 bg-blue-100 text-blue-800 rounded-xl border-2 border-blue-800 btn-press active:scale-95 transition" title="查看排班規則"><InfoIcon size={18} /><span className="text-[10px] font-bold mt-0.5">規則</span></button>
                                 <button onClick={handleExport} className="flex flex-col items-center justify-center px-3 py-2 bg-emerald-100 text-emerald-800 rounded-xl border-2 border-emerald-800 btn-press active:scale-95 transition" title="匯出 Excel"><DownloadIcon size={18} /><span className="text-[10px] font-bold mt-0.5">匯出</span></button>
                                 <button onClick={handleImportClick} className="flex flex-col items-center justify-center px-3 py-2 bg-sky-100 text-sky-800 rounded-xl border-2 border-sky-800 btn-press active:scale-95 transition" title="匯入 Excel"><UploadIcon size={18} /><span className="text-[10px] font-bold mt-0.5">匯入</span></button>
                                 <div className="w-0.5 h-10 bg-slate-200 mx-1"></div>
@@ -827,9 +829,8 @@
                                         <span className="text-2xl filter drop-shadow-sm leading-none mr-1">{type.icon}</span><span className={`text-xs font-bold ${selectedTool === type.id ? 'text-slate-800' : 'text-slate-700'}`}>{type.name}</span>{selectedTool === type.id && (<div className="absolute -top-2 -right-2 bg-slate-900 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center border-2 border-white">✓</div>)}
                                     </button>
                                 ))}
-                                <div className="ml-auto pl-4 border-l-2 border-slate-200 flex flex-col items-end">
-                                    <div className="flex items-center gap-1 text-sm font-bold text-slate-800"><span className="bg-yellow-200 px-1 rounded text-xs">Hi</span>{currentUser.name}</div>
-                                    <button onClick={() => setShowLogModal(true)} className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-blue-600 mt-1 px-2 py-0.5 bg-white border border-slate-200 rounded-lg hover:border-blue-300 transition"><ScrollTextIcon size={10} /> 📜 紀錄</button>
+                                <div className="ml-auto pl-4 border-l-2 border-slate-200 flex flex-col items-end justify-center">
+                                    {lastModifiedInfo && (<div className="text-[10px] text-slate-400 whitespace-nowrap">Update: {lastModifiedInfo.by} {lastModifiedInfo.at}</div>)}
                                 </div>
                             </div>
                         </div>
@@ -953,31 +954,6 @@
                         </div>
                     )}
 
-                    {/* Info Modal (規則備忘錄) */}
-                    {showInfoModal && (
-                        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={() => setShowInfoModal(false)}>
-                            <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 border-2 border-slate-800 relative" onClick={e => e.stopPropagation()}>
-                                <button onClick={() => setShowInfoModal(false)} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 rounded-full p-1 hover:bg-slate-100"><XIcon size={24} /></button>
-                                <h3 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2 border-b-2 border-blue-100 pb-3"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600"><IconBase size={20}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="16" y2="12"/><line x1="12" x2="12.01" y1="8" y2="8"/></IconBase></div>排班規則備忘</h3>
-                                <div className="space-y-6 text-slate-600 select-text cursor-text">
-                                    <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
-                                        <h4 className="font-bold text-orange-800 mb-3 flex items-center gap-2 text-sm uppercase tracking-wide"><span className="w-2 h-2 rounded-full bg-orange-400"></span>四二輪排班順序</h4>
-                                        <ul className="space-y-2 text-sm font-medium pl-2">
-                                            <li className="flex items-center gap-2 text-slate-700"><span className="text-orange-300 font-bold">1.</span> 王泓凱 (B) + 陳嘉軒 (A)</li>
-                                            <li className="flex items-center gap-2 text-slate-700"><span className="text-orange-300 font-bold">2.</span> 張皓翔 (B) + 陳浩霖 (A)</li>
-                                            <li className="flex items-center gap-2 text-slate-700"><span className="text-orange-300 font-bold">3.</span> 翁子涵 (B) + 趙婉卉 (A)</li>
-                                            <li className="flex items-center gap-2 text-slate-700"><span className="text-orange-300 font-bold">4.</span> 游佳憲 (B) + 林明儒 (A)</li>
-                                        </ul>
-                                    </div>
-                                    <div className="bg-violet-50 p-4 rounded-lg border border-violet-100">
-                                        <h4 className="font-bold text-violet-800 mb-3 flex items-center gap-2 text-sm uppercase tracking-wide"><span className="w-2 h-2 rounded-full bg-violet-400"></span>平日班小夜順序</h4>
-                                        <div className="text-sm text-slate-700 leading-relaxed font-medium">王泓凱 (B) <span className="text-violet-300 px-1">→</span> 陳嘉軒 (A) <span className="text-violet-300 px-1">→</span> 張皓翔 (B) <span className="text-violet-300 px-1">→</span> 陳浩霖 (A) <span className="text-violet-300 px-1">→</span> 翁子涵 (B) <span className="text-violet-300 px-1">→</span> 趙婉卉 (A) <span className="text-violet-300 px-1">→</span> 游佳憲 (B) <span className="text-violet-300 px-1">→</span> 林明儒 (A)</div>
-                                    </div>
-                                </div>
-                                <div className="mt-6 pt-4 border-t border-slate-100 text-center"><button onClick={() => setShowInfoModal(false)} className="text-sm text-slate-400 hover:text-slate-600 font-bold">關閉視窗</button></div>
-                            </div>
-                        </div>
-                    )}
                     {confirmModal.show && (
                         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
                             <div className="bg-white rounded-lg shadow-lg max-w-sm w-full p-6 border-2 border-slate-800 animate-in zoom-in-95 duration-200 -rotate-1">
