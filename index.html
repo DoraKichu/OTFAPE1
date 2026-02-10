@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>製程班表 (專業報表版 v5.4)</title>
+    <title>製程班表 (精確過年版 v5.7)</title>
     
     <!-- 引入 React 和 ReactDOM -->
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -15,7 +15,7 @@
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- ⚠️ 關鍵升級：引入 xlsx-js-style 以支援 Excel 樣式 (顏色、邊框) -->
+    <!-- 引入 xlsx-js-style 以支援 Excel 樣式 (顏色、邊框) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
 
     <!-- Firebase SDKs -->
@@ -154,7 +154,9 @@
             LITTLE_NIGHT: { id: 'LITTLE_NIGHT', name: '小夜', time: '16:00-24:00', color: 'bg-pink-100 text-pink-900 border-pink-200 shadow-sm', icon: '🌛', excelCode: 'HM' },
             ROTATION_C: { id: 'ROTATION_C', name: 'C班', time: '跟值', color: 'bg-cyan-100 text-cyan-900 border-cyan-200 shadow-sm', icon: '👥', excelCode: 'C' },
             LEAVE: { id: 'LEAVE', name: '請假', time: 'OFF', color: 'bg-white border border-slate-200 shadow-sm text-slate-800', icon: '🛌', excelCode: 'L' },
-            REST: { id: 'REST', name: '休', time: 'REST', color: 'border-2 border-dashed border-slate-300 text-slate-400', icon: '💤', excelCode: '' }
+            REST: { id: 'REST', name: '休', time: 'REST', color: 'border-2 border-dashed border-slate-300 text-slate-400', icon: '💤', excelCode: '' },
+            // 新增主管值班
+            MANAGER: { id: 'MANAGER', name: '主管值班', time: '值班', color: 'bg-orange-100 text-orange-900 border-orange-200 shadow-sm', icon: '👔', excelCode: 'M' }
         };
 
         const TOOL_ERASER = {
@@ -163,26 +165,68 @@
             icon: <Eraser size={18} />
         };
 
-        const HOLIDAYS = {
-            '2025-01-25': '春節', '2025-01-26': '春節', '2025-01-27': '除夕', '2025-01-28': '春節', '2025-01-29': '春節', 
-            '2025-01-30': '春節', '2025-01-31': '春節', '2025-02-01': '春節', '2025-02-02': '春節',
-            '2025-02-28': '228', '2025-03-01': '228', '2025-03-02': '228',
-            '2025-04-03': '兒童', '2025-04-04': '清明', '2025-04-05': '清明', '2025-04-06': '清明',
-            '2025-05-30': '端午', '2025-05-31': '端午', '2025-06-01': '端午',
-            '2025-09-27': '教師', '2025-09-28': '教師', '2025-09-29': '教師',
-            '2025-10-04': '中秋', '2025-10-05': '中秋', '2025-10-06': '中秋',
-            '2025-10-10': '國慶', '2025-10-11': '國慶', '2025-10-12': '國慶',
-            '2025-10-24': '光復', '2025-10-25': '光復', '2025-10-26': '光復',
-            '2026-02-14': '春節', '2026-02-15': '春節', '2026-02-16': '除夕', '2026-02-17': '春節', '2026-02-18': '春節',
-            '2026-02-19': '春節', '2026-02-20': '春節', '2026-02-21': '春節', '2026-02-22': '春節',
-            '2026-02-27': '228', '2026-02-28': '228', '2026-03-01': '228',
-            '2026-04-03': '兒童', '2026-04-04': '清明', '2026-04-05': '清明', '2026-04-06': '清明',
-            '2026-05-01': '勞動', '2026-05-02': '勞動', '2026-05-03': '勞動',
-            '2026-06-19': '端午', '2026-06-20': '端午', '2026-06-21': '端午',
-            '2026-09-25': '中秋', '2026-09-26': '中秋', '2026-09-27': '教師', '2026-09-28': '教師',
-            '2026-10-09': '國慶', '2026-10-10': '國慶', '2026-10-11': '國慶',
-            '2026-10-24': '光復', '2026-10-25': '光復', '2026-10-26': '光復',
-            '2026-12-25': '行憲', '2026-12-26': '行憲', '2026-12-27': '行憲',
+        // --- 萬年曆節日推算 ---
+        // 農曆節日對照表 (Gregorian dates for Lunar New Year, Dragon Boat, Mid-Autumn)
+        // 格式: 'YYYY': { CNY: 'MM-DD', Dragon: 'MM-DD', Moon: 'MM-DD' }
+        const LUNAR_DATES = {
+            '2024': { CNY: '02-10', Dragon: '06-10', Moon: '09-17' },
+            '2025': { CNY: '01-29', Dragon: '05-31', Moon: '10-06' },
+            '2026': { CNY: '02-17', Dragon: '06-19', Moon: '09-25' },
+            '2027': { CNY: '02-06', Dragon: '06-09', Moon: '09-15' },
+            '2028': { CNY: '01-26', Dragon: '05-28', Moon: '10-03' },
+            '2029': { CNY: '02-13', Dragon: '06-16', Moon: '09-22' },
+            '2030': { CNY: '02-03', Dragon: '06-05', Moon: '09-12' },
+            '2031': { CNY: '01-23', Dragon: '06-24', Moon: '10-01' },
+            '2032': { CNY: '02-11', Dragon: '06-12', Moon: '09-19' },
+            '2033': { CNY: '01-31', Dragon: '06-01', Moon: '10-08' },
+            '2034': { CNY: '02-19', Dragon: '06-20', Moon: '09-27' },
+            '2035': { CNY: '02-08', Dragon: '06-10', Moon: '09-16' }
+        };
+
+        const getHolidayName = (date) => {
+            const year = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            const md = `${m}-${d}`;
+
+            // 1. 國曆固定節日
+            if (md === '01-01') return '元旦';
+            if (md === '02-28') return '228';
+            if (md === '04-04') return '兒童'; // 簡化：兒童節通常是4/4
+            if (md === '05-01') return '勞動';
+            if (md === '10-10') return '國慶';
+
+            // 2. 清明節 (演算法推算, 21世紀適用)
+            // 簡單公式：int((year*0.2422+4.81) - int(year/4))，通常是 4/4 或 4/5
+            const qingmingDay = Math.floor((year * 0.2422 + 4.81) - Math.floor(year / 4));
+            if (date.getMonth() + 1 === 4 && date.getDate() === qingmingDay) return '清明';
+            // 如果清明跟兒童同一天(4/4)，通常4/5會補假或顯示清明，這裡簡單顯示
+            if (md === '04-05' && qingmingDay === 4) return '清明'; // 簡單處理
+
+            // 3. 農曆節日 (查表)
+            const lunar = LUNAR_DATES[String(year)];
+            if (lunar) {
+                const [cnyM, cnyD] = lunar.CNY.split('-').map(Number);
+                
+                // Helper to compare current date with a specific lunar date offset
+                const compare = (offset) => {
+                    const dObj = new Date(year, cnyM - 1, cnyD);
+                    dObj.setDate(dObj.getDate() + offset);
+                    return date.getMonth() === dObj.getMonth() && date.getDate() === dObj.getDate();
+                };
+
+                if (compare(-1)) return '除夕';
+                if (compare(0)) return '初一';
+                if (compare(1)) return '初二';
+                if (compare(2)) return '初三';
+                if (compare(3)) return '初四';
+                if (compare(4)) return '初五';
+
+                if (md === lunar.Dragon) return '端午';
+                if (md === lunar.Moon) return '中秋';
+            }
+
+            return null;
         };
 
         const getDateStr = (date) => {
@@ -202,6 +246,7 @@
             if (shift.id === 'LEAVE') return shift.icon;
             if (shift.id === 'REST') return shift.icon;
             if (shift.id === 'NORMAL') return shift.icon;
+            if (shift.id === 'MANAGER') return shift.icon; // 主管
             if (shift.icon.length <= 2) return shift.icon; // For simple emojis
             return shift.name; // For complex names like 日A
         };
@@ -229,7 +274,7 @@
                 const dateStr = getDateStr(d);
                 const dayOfWeek = d.getDay();
                 const isWknd = dayOfWeek === 0 || dayOfWeek === 6;
-                const isHol = !!HOLIDAYS[dateStr];
+                const isHol = !!getHolidayName(d);
                 if (!isWknd && !isHol) {
                     return d;
                 }
@@ -899,11 +944,12 @@
                     const date = new Date(viewStartDate);
                     date.setDate(viewStartDate.getDate() + i);
                     const dateStr = getDateStr(date);
+                    const holidayName = getHolidayName(date);
                     arr.push({
                         date, dateStr, dayNum: date.getDate(),
                         dayOfWeek: ['日','一','二','三','四','五','六'][date.getDay()],
                         isWeekend: isWeekend(date),
-                        holiday: HOLIDAYS[dateStr],
+                        holiday: holidayName,
                         monthLabel: `${date.getFullYear()}年${date.getMonth()+1}月`
                     });
                 }
@@ -940,7 +986,7 @@
                     } else {
                         const day = d.getDay();
                         const isWknd = day === 0 || day === 6;
-                        const isHol = !!HOLIDAYS[dateStr];
+                        const isHol = !!getHolidayName(d);
                         
                         if (user && user.type === 'NORMAL' && !isWknd && !isHol) {
                             stats['NORMAL'] = (stats['NORMAL'] || 0) + 1;
@@ -981,10 +1027,9 @@
                     for (let d = 1; d <= totalDays; d++) {
                         headerRow.push(d);
                         const currentDate = new Date(targetYear, month, d);
-                        const dateStr = getDateStr(currentDate);
                         const day = currentDate.getDay();
-                        if (day === 0 || day === 6) weekendCols.push(d); // col index matches day num in this layout
-                        if (HOLIDAYS[dateStr]) holidayCols.push(d);
+                        if (day === 0 || day === 6) weekendCols.push(d); 
+                        if (getHolidayName(currentDate)) holidayCols.push(d);
                     }
                     ws_data.push(headerRow);
                     currentRow++;
@@ -1021,20 +1066,19 @@
                 const ws = XLSX.utils.aoa_to_sheet(ws_data);
 
                 // --- Styling Logic ---
-                // Helper for borders
                 const thinBorder = { style: "thin", color: { rgb: "000000" } };
-                const thickBorder = { style: "medium", color: { rgb: "000000" } }; // 'medium' usually looks like standard thick
-                const blueFill = { fgColor: { rgb: "DDEBF7" } }; // Light blue Excel color
+                const thickBorder = { style: "medium", color: { rgb: "000000" } }; 
+                const blueFill = { fgColor: { rgb: "DDEBF7" } }; 
                 const centerAlign = { horizontal: "center", vertical: "center" };
 
                 // Apply styles based on monthBlocks
                 monthBlocks.forEach(block => {
-                    const lastColIndex = block.totalDays; // 0-indexed column A is name, 1 is day 1...
+                    const lastColIndex = block.totalDays; 
                     
                     for (let r = block.startRow; r <= block.endRow; r++) {
                         for (let c = 0; c <= lastColIndex; c++) {
                             const cellRef = XLSX.utils.encode_cell({ r, c });
-                            if (!ws[cellRef]) ws[cellRef] = { v: "", t: "s" }; // Create cell if empty
+                            if (!ws[cellRef]) ws[cellRef] = { v: "", t: "s" }; 
 
                             // Base Style
                             let s = {
@@ -1050,21 +1094,15 @@
 
                             // Holiday/Weekend Fill (Apply to columns > 0)
                             if (c > 0) {
-                                // Check if this col is in weekend or holiday list
-                                // c is exactly the day number here because col 0 is Name
                                 if (block.weekendCols.includes(c) || block.holidayCols.includes(c)) {
                                     s.fill = blueFill;
                                 }
                             }
 
                             // --- Outline Thick Borders ---
-                            // Top of block
                             if (r === block.startRow) s.border.top = thickBorder;
-                            // Bottom of block
                             if (r === block.endRow) s.border.bottom = thickBorder;
-                            // Left of block (Col A)
                             if (c === 0) s.border.left = thickBorder;
-                            // Right of block (Last day col)
                             if (c === lastColIndex) s.border.right = thickBorder;
 
                             ws[cellRef].s = s;
@@ -1073,8 +1111,8 @@
                 });
 
                 // Set column widths
-                const wscols = [{ wch: 10 }]; // Name col
-                for(let i=0; i<31; i++) wscols.push({ wch: 4 }); // Day cols narrow
+                const wscols = [{ wch: 10 }]; 
+                for(let i=0; i<31; i++) wscols.push({ wch: 4 }); 
                 ws['!cols'] = wscols;
 
                 const wb = XLSX.utils.book_new();
@@ -1136,7 +1174,7 @@
                             <div className="flex items-center gap-3 min-w-max">
                                 <div className="flex flex-col mr-2">
                                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => { if(!isConnected) showToast('尚未連線至雲端', 'error'); }}>
-                                        <h1 className="text-2xl font-black text-slate-800 tracking-wider">製程班表(專業版)</h1>
+                                        <h1 className="text-2xl font-black text-slate-800 tracking-wider">製程班表(精確過年版)</h1>
                                         <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]'}`} title={isConnected ? "已連線至雲端" : "未連線"}></div>
                                     </div>
                                     <div className="flex items-center gap-2 mt-1">
