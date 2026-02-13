@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>製程班表 (精確過年版 v5.7)</title>
+    <title>製程班表 (強力橡皮擦版 v6.1)</title>
     
     <!-- 引入 React 和 ReactDOM -->
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -15,7 +15,7 @@
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- 引入 xlsx-js-style 以支援 Excel 樣式 (顏色、邊框) -->
+    <!-- 引入 xlsx-js-style 以支援 Excel 樣式 -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
 
     <!-- Firebase SDKs -->
@@ -62,6 +62,13 @@
         .toast-enter { animation: slideUp 0.3s ease-out forwards; }
         .cursor-wait { cursor: wait; opacity: 0.7; }
         textarea::placeholder { color: #cbd5e1; }
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.8); backdrop-filter: blur(4px);
+            z-index: 9999; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
     </style>
 </head>
 <body class="paper-texture h-screen overflow-hidden text-slate-700">
@@ -71,10 +78,7 @@
         const { useState, useEffect, useRef, useMemo } = React;
         const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, getDoc, setDoc, onSnapshot, collection } = window.Firebase;
 
-        // =================================================================================
-        // 👇👇👇 請在這裡填入您的 Google Apps Script 網址 👇👇👇
         const GOOGLE_SCRIPT_URL = ""; 
-        // =================================================================================
 
         // --- SVG Icons ---
         const IconBase = ({ children, size = 20, className = "", ...props }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>{children}</svg>);
@@ -100,6 +104,7 @@
         const ClipboardIcon = (props) => <IconBase {...props}><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></IconBase>;
         const TableIcon = (props) => <IconBase {...props}><path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/></IconBase>;
         const CloudUploadIcon = (props) => <IconBase {...props}><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></IconBase>;
+        const RefreshCwIcon = (props) => <IconBase {...props}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></IconBase>;
 
         // --- Firebase Configuration ---
         const firebaseConfig = {
@@ -128,7 +133,6 @@
             }
         }
 
-        // --- CONSTANTS ---
         const INITIAL_USER_LIST = [
             { id: 'v02455', name: '周哲維', type: 'NORMAL' },
             { id: 'v02457', name: '陳泓廷', type: 'NORMAL' },
@@ -142,7 +146,6 @@
             { id: 'v04463', name: '林明儒', type: 'ROTATION' } 
         ];
 
-        // 班別設定 - 定義 Excel 匯出代碼 (excelCode)
         const SHIFT_TYPES = {
             NORMAL: { id: 'NORMAL', name: '常日', time: '08:30-17:30', color: 'bg-white border border-slate-200 shadow-sm text-slate-800', icon: '☀️', excelCode: '' },
             DAY_A: { id: 'DAY_A', name: '日A', time: '07:20-19:20', color: 'bg-green-100 text-green-900 border-green-200 shadow-sm', icon: '☀️A', excelCode: 'DA' },
@@ -155,7 +158,6 @@
             ROTATION_C: { id: 'ROTATION_C', name: 'C班', time: '跟值', color: 'bg-cyan-100 text-cyan-900 border-cyan-200 shadow-sm', icon: '👥', excelCode: 'C' },
             LEAVE: { id: 'LEAVE', name: '請假', time: 'OFF', color: 'bg-white border border-slate-200 shadow-sm text-slate-800', icon: '🛌', excelCode: 'L' },
             REST: { id: 'REST', name: '休', time: 'REST', color: 'border-2 border-dashed border-slate-300 text-slate-400', icon: '💤', excelCode: '' },
-            // 新增主管值班
             MANAGER: { id: 'MANAGER', name: '主管值班', time: '值班', color: 'bg-orange-100 text-orange-900 border-orange-200 shadow-sm', icon: '👔', excelCode: 'M' }
         };
 
@@ -165,9 +167,12 @@
             icon: <Eraser size={18} />
         };
 
-        // --- 萬年曆節日推算 ---
-        // 農曆節日對照表 (Gregorian dates for Lunar New Year, Dragon Boat, Mid-Autumn)
-        // 格式: 'YYYY': { CNY: 'MM-DD', Dragon: 'MM-DD', Moon: 'MM-DD' }
+        const OFFICIAL_OVERRIDES_115 = {
+            '2026-02-27': '和平補假', '2026-04-03': '兒童補假', '2026-04-06': '清明補假',
+            '2026-09-28': '教師節', '2026-10-09': '國慶補假', '2026-10-25': '光復節',
+            '2026-10-26': '光復補假', '2026-12-25': '行憲紀念'
+        };
+
         const LUNAR_DATES = {
             '2024': { CNY: '02-10', Dragon: '06-10', Moon: '09-17' },
             '2025': { CNY: '01-29', Dragon: '05-31', Moon: '10-06' },
@@ -187,45 +192,37 @@
             const year = date.getFullYear();
             const m = String(date.getMonth() + 1).padStart(2, '0');
             const d = String(date.getDate()).padStart(2, '0');
+            const dateStr = getDateStr(date);
             const md = `${m}-${d}`;
 
-            // 1. 國曆固定節日
+            if (OFFICIAL_OVERRIDES_115[dateStr]) return OFFICIAL_OVERRIDES_115[dateStr];
             if (md === '01-01') return '元旦';
             if (md === '02-28') return '228';
-            if (md === '04-04') return '兒童'; // 簡化：兒童節通常是4/4
+            if (md === '04-04') return '兒童'; 
             if (md === '05-01') return '勞動';
             if (md === '10-10') return '國慶';
 
-            // 2. 清明節 (演算法推算, 21世紀適用)
-            // 簡單公式：int((year*0.2422+4.81) - int(year/4))，通常是 4/4 或 4/5
             const qingmingDay = Math.floor((year * 0.2422 + 4.81) - Math.floor(year / 4));
             if (date.getMonth() + 1 === 4 && date.getDate() === qingmingDay) return '清明';
-            // 如果清明跟兒童同一天(4/4)，通常4/5會補假或顯示清明，這裡簡單顯示
-            if (md === '04-05' && qingmingDay === 4) return '清明'; // 簡單處理
+            if (md === '04-05' && qingmingDay === 4) return '清明'; 
 
-            // 3. 農曆節日 (查表)
             const lunar = LUNAR_DATES[String(year)];
             if (lunar) {
                 const [cnyM, cnyD] = lunar.CNY.split('-').map(Number);
-                
-                // Helper to compare current date with a specific lunar date offset
                 const compare = (offset) => {
                     const dObj = new Date(year, cnyM - 1, cnyD);
                     dObj.setDate(dObj.getDate() + offset);
                     return date.getMonth() === dObj.getMonth() && date.getDate() === dObj.getDate();
                 };
-
                 if (compare(-1)) return '除夕';
                 if (compare(0)) return '初一';
                 if (compare(1)) return '初二';
                 if (compare(2)) return '初三';
                 if (compare(3)) return '初四';
                 if (compare(4)) return '初五';
-
                 if (md === lunar.Dragon) return '端午';
                 if (md === lunar.Moon) return '中秋';
             }
-
             return null;
         };
 
@@ -243,30 +240,13 @@
 
         const getShiftLabel = (shift) => {
             if (!shift) return '';
-            if (shift.id === 'LEAVE') return shift.icon;
-            if (shift.id === 'REST') return shift.icon;
-            if (shift.id === 'NORMAL') return shift.icon;
-            if (shift.id === 'MANAGER') return shift.icon; // 主管
-            if (shift.icon.length <= 2) return shift.icon; // For simple emojis
-            return shift.name; // For complex names like 日A
+            if (shift.id === 'LEAVE' || shift.id === 'REST' || shift.id === 'NORMAL' || shift.id === 'MANAGER' || shift.icon.length <= 2) return shift.icon;
+            return shift.name; 
         };
 
-        const getShiftName = (shiftId) => {
-             if (!shiftId) return "";
-             return SHIFT_TYPES[shiftId]?.name || shiftId;
-        };
-
-        const getShiftIdByName = (name) => {
-            for (const key in SHIFT_TYPES) {
-                if (SHIFT_TYPES[key].name === name) return key;
-            }
-            return null;
-        };
-
-        const getExcelCode = (shiftId) => {
-            if (!shiftId) return "";
-            return SHIFT_TYPES[shiftId]?.excelCode !== undefined ? SHIFT_TYPES[shiftId].excelCode : shiftId;
-        };
+        const getShiftName = (shiftId) => !shiftId ? "" : SHIFT_TYPES[shiftId]?.name || shiftId;
+        const getShiftIdByName = (name) => { for (const key in SHIFT_TYPES) { if (SHIFT_TYPES[key].name === name) return key; } return null; };
+        const getExcelCode = (shiftId) => !shiftId ? "" : SHIFT_TYPES[shiftId]?.excelCode !== undefined ? SHIFT_TYPES[shiftId].excelCode : shiftId;
 
         const getPayday = (year, month) => {
             let d = new Date(year, month, 25);
@@ -275,37 +255,22 @@
                 const dayOfWeek = d.getDay();
                 const isWknd = dayOfWeek === 0 || dayOfWeek === 6;
                 const isHol = !!getHolidayName(d);
-                if (!isWknd && !isHol) {
-                    return d;
-                }
+                if (!isWknd && !isHol) return d;
                 d.setDate(d.getDate() - 1);
             }
         };
 
-        // --- TOAST COMPONENT ---
+        // --- COMPONENTS ---
         function Toast({ message, type = 'info', onClose }) {
-            useEffect(() => {
-                const timer = setTimeout(onClose, 4000);
-                return () => clearTimeout(timer);
-            }, [onClose]);
-
-            const bgColors = {
-                info: 'bg-slate-800 text-white',
-                success: 'bg-green-600 text-white',
-                error: 'bg-red-600 text-white',
-                warning: 'bg-yellow-500 text-white'
-            };
-
+            useEffect(() => { const timer = setTimeout(onClose, 4000); return () => clearTimeout(timer); }, [onClose]);
+            const bgColors = { info: 'bg-slate-800 text-white', success: 'bg-green-600 text-white', error: 'bg-red-600 text-white', warning: 'bg-yellow-500 text-white' };
             return (
                 <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-xl z-[100] text-sm font-bold flex items-center gap-2 toast-enter ${bgColors[type]}`}>
-                    {type === 'error' && <AlertTriangle size={16} />}
-                    {type === 'success' && <CheckIcon size={16} />}
-                    {message}
+                    {type === 'error' && <AlertTriangle size={16} />}{type === 'success' && <CheckIcon size={16} />}{message}
                 </div>
             );
         }
 
-        // --- LOGIN COMPONENT ---
         function LoginScreen({ onLogin, userList }) {
             const [inputId, setInputId] = useState('');
             const [error, setError] = useState('');
@@ -322,31 +287,24 @@
                     }
                     return newCount;
                 });
-
                 if (eggTimerRef.current) clearTimeout(eggTimerRef.current);
-                eggTimerRef.current = setTimeout(() => {
-                    setEggClicks(0);
-                }, 500);
+                eggTimerRef.current = setTimeout(() => { setEggClicks(0); }, 500);
             };
 
             const handleLogin = (e) => {
                 e.preventDefault();
                 const user = userList.find(u => u.id.toLowerCase() === inputId.toLowerCase());
-                if (user) {
-                    onLogin(user);
-                } else {
+                if (user) onLogin(user);
+                else {
                     const initUser = INITIAL_USER_LIST.find(u => u.id.toLowerCase() === inputId.toLowerCase());
-                    if (initUser) onLogin(initUser);
-                    else setError('工號錯誤，請重新輸入 (例如 v03111)');
+                    if (initUser) onLogin(initUser); else setError('工號錯誤，請重新輸入 (例如 v03111)');
                 }
             };
 
             return (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 paper-texture">
                     <div className="bg-white p-8 rounded-2xl shadow-xl border-4 border-slate-800 w-full max-w-sm animate-fade-in text-center">
-                        <div className="w-20 h-20 bg-yellow-300 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-slate-800 shadow-[4px_4px_0px_rgba(0,0,0,1)] cursor-pointer active:scale-95 transition-transform" onClick={handleEggClick}>
-                            <UserIcon size={40} className="text-slate-800" />
-                        </div>
+                        <div className="w-20 h-20 bg-yellow-300 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-slate-800 shadow-[4px_4px_0px_rgba(0,0,0,1)] cursor-pointer active:scale-95 transition-transform" onClick={handleEggClick}><UserIcon size={40} className="text-slate-800" /></div>
                         <h2 className="text-2xl font-black text-slate-800 mb-2">班表手帳登入</h2>
                         <p className="text-slate-500 mb-6 text-sm">請輸入您的 6 碼工號以開始使用</p>
                         <form onSubmit={handleLogin} className="space-y-4">
@@ -359,7 +317,7 @@
             );
         }
 
-        // --- SHEET BACKUP MODAL (ROBUST FIX) ---
+        // --- SHEET BACKUP MODAL ---
         function GoogleSheetModal({ isOpen, onClose, schedule, displayUsers, daysData, onImport }) {
             const [mode, setMode] = useState('copy'); 
             const [pasteText, setPasteText] = useState('');
@@ -390,75 +348,43 @@
                     textArea.select();
                     try {
                         const successful = document.execCommand('copy');
-                        if (successful) alert("已複製！請去 Google Sheets 按 Ctrl+V 貼上");
-                        else alert("請按下 Ctrl+C 複製");
-                    } catch (err) {
-                        alert("請按下 Ctrl+C 複製");
-                    }
+                        if (successful) alert("已複製！請去 Google Sheets 按 Ctrl+V 貼上"); else alert("請按下 Ctrl+C 複製");
+                    } catch (err) { alert("請按下 Ctrl+C 複製"); }
                 }
             };
             
             const handleGoogleUpload = async () => {
-                if (!GOOGLE_SCRIPT_URL) {
-                    alert("⚠️ 請先在程式碼最上方填入 GOOGLE_SCRIPT_URL");
-                    return;
-                }
+                if (!GOOGLE_SCRIPT_URL) { alert("⚠️ 請先在程式碼最上方填入 GOOGLE_SCRIPT_URL"); return; }
                 setIsUploading(true);
                 try {
-                    const payload = {
-                        schedule: schedule,
-                        users: displayUsers.map(u => u.name),
-                        timestamp: new Date().toISOString()
-                    };
-                    
-                    await fetch(GOOGLE_SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'no-cors', 
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    
+                    const payload = { schedule: schedule, users: displayUsers.map(u => u.name), timestamp: new Date().toISOString() };
+                    await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                     alert("✅ 已發送上傳請求！\n(因 Google 安全限制無法確認結果，請檢查您的試算表)");
-                } catch (e) {
-                    console.error(e);
-                    alert("❌ 上傳失敗：" + e.message);
-                } finally {
-                    setIsUploading(false);
-                }
+                } catch (e) { console.error(e); alert("❌ 上傳失敗：" + e.message); } finally { setIsUploading(false); }
             };
 
             const handleParsePaste = () => {
                 if (!pasteText.trim()) return;
                 const rows = pasteText.split('\n').map(r => r.split('\t'));
                 if (rows.length < 2) { alert("格式看似不正確，請包含標題列"); return; }
-                
                 const header = rows[0];
                 const newSchedule = {}; 
-                
-                let successCount = 0;
-
                 for (let i = 1; i < rows.length; i++) {
                     const row = rows[i];
                     if (row.length < 2) continue;
                     const name = row[0].trim();
                     if (!name) continue;
-
                     const userSch = {};
                     for (let j = 1; j < row.length; j++) {
                         const dateStr = header[j]?.trim();
                         const shiftName = row[j]?.trim();
-                        
                         if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && shiftName) {
                             const shiftId = getShiftIdByName(shiftName);
                             if (shiftId) userSch[dateStr] = shiftId;
                         }
                     }
-                    if (Object.keys(userSch).length > 0) {
-                        newSchedule[name] = userSch;
-                        successCount++;
-                    }
+                    if (Object.keys(userSch).length > 0) newSchedule[name] = userSch;
                 }
-                
                 onImport(newSchedule);
                 onClose();
             };
@@ -468,63 +394,13 @@
             return (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={onClose}>
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border-4 border-green-600" onClick={e => e.stopPropagation()}>
-                        <div className="bg-green-50 p-4 border-b border-green-100 flex justify-between items-center">
-                            <h3 className="text-xl font-black text-green-800 flex items-center gap-2"><TableIcon /> Google Sheets 備份助手</h3>
-                            <button onClick={onClose}><XIcon className="text-slate-400 hover:text-slate-600"/></button>
-                        </div>
-                        <div className="flex border-b border-slate-200">
-                            <button onClick={() => setMode('copy')} className={`flex-1 py-3 font-bold text-sm flex items-center justify-center gap-2 ${mode === 'copy' ? 'bg-white text-green-700 border-b-2 border-green-600' : 'bg-slate-50 text-slate-500'}`}>
-                                <CopyIcon size={16}/> 1. 複製 / 上傳
-                            </button>
-                            <button onClick={() => setMode('paste')} className={`flex-1 py-3 font-bold text-sm flex items-center justify-center gap-2 ${mode === 'paste' ? 'bg-white text-green-700 border-b-2 border-green-600' : 'bg-slate-50 text-slate-500'}`}>
-                                <ClipboardIcon size={16}/> 2. 從試算表還原
-                            </button>
-                        </div>
+                        <div className="bg-green-50 p-4 border-b border-green-100 flex justify-between items-center"><h3 className="text-xl font-black text-green-800 flex items-center gap-2"><TableIcon /> Google Sheets 備份助手</h3><button onClick={onClose}><XIcon className="text-slate-400 hover:text-slate-600"/></button></div>
+                        <div className="flex border-b border-slate-200"><button onClick={() => setMode('copy')} className={`flex-1 py-3 font-bold text-sm flex items-center justify-center gap-2 ${mode === 'copy' ? 'bg-white text-green-700 border-b-2 border-green-600' : 'bg-slate-50 text-slate-500'}`}><CopyIcon size={16}/> 1. 複製 / 上傳</button><button onClick={() => setMode('paste')} className={`flex-1 py-3 font-bold text-sm flex items-center justify-center gap-2 ${mode === 'paste' ? 'bg-white text-green-700 border-b-2 border-green-600' : 'bg-slate-50 text-slate-500'}`}><ClipboardIcon size={16}/> 2. 從試算表還原</button></div>
                         <div className="p-6">
                             {mode === 'copy' ? (
-                                <div className="space-y-4">
-                                    <p className="text-slate-600 text-center text-sm">
-                                        請點擊下方按鈕選取內容，然後按 <span className="font-mono bg-slate-100 px-1 rounded font-bold">Ctrl+C</span> 複製。
-                                    </p>
-                                    <textarea 
-                                        id="copy-textarea"
-                                        value={copyText} 
-                                        readOnly
-                                        className="w-full h-24 p-3 border-2 border-green-200 rounded-lg focus:border-green-500 outline-none font-mono text-xs bg-slate-50"
-                                        onClick={(e) => e.target.select()}
-                                    ></textarea>
-                                    <div className="flex gap-3">
-                                        <button onClick={handleSelectText} className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold shadow-md hover:bg-green-700 active:scale-95 transition flex items-center justify-center gap-2">
-                                            <CopyIcon size={18} /> 全選 (Ctrl+C)
-                                        </button>
-                                        {GOOGLE_SCRIPT_URL && (
-                                            <button onClick={handleGoogleUpload} disabled={isUploading} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md hover:bg-blue-700 active:scale-95 transition flex items-center justify-center gap-2 disabled:bg-gray-400">
-                                                {isUploading ? '上傳中...' : <><CloudUploadIcon size={18} /> 上傳 Google</>}
-                                            </button>
-                                        )}
-                                    </div>
-                                    {!GOOGLE_SCRIPT_URL && (
-                                        <p className="text-xs text-center text-slate-400 mt-2">
-                                            (提示：填入 API 網址後可啟用一鍵上傳功能)
-                                        </p>
-                                    )}
-                                </div>
+                                <div className="space-y-4"><p className="text-slate-600 text-center text-sm">請點擊下方按鈕選取內容，然後按 <span className="font-mono bg-slate-100 px-1 rounded font-bold">Ctrl+C</span> 複製。</p><textarea id="copy-textarea" value={copyText} readOnly className="w-full h-24 p-3 border-2 border-green-200 rounded-lg focus:border-green-500 outline-none font-mono text-xs bg-slate-50" onClick={(e) => e.target.select()}></textarea><div className="flex gap-3"><button onClick={handleSelectText} className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold shadow-md hover:bg-green-700 active:scale-95 transition flex items-center justify-center gap-2"><CopyIcon size={18} /> 全選 (Ctrl+C)</button>{GOOGLE_SCRIPT_URL && (<button onClick={handleGoogleUpload} disabled={isUploading} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md hover:bg-blue-700 active:scale-95 transition flex items-center justify-center gap-2 disabled:bg-gray-400">{isUploading ? '上傳中...' : <><CloudUploadIcon size={18} /> 上傳 Google</>}</button>)}</div>{!GOOGLE_SCRIPT_URL && (<p className="text-xs text-center text-slate-400 mt-2">(提示：填入 API 網址後可啟用一鍵上傳功能)</p>)}</div>
                             ) : (
-                                <div className="space-y-4">
-                                    <p className="text-sm text-slate-500">
-                                        請在 Google Sheets 複製包含「姓名」與「日期」的區域，然後貼在下方：
-                                    </p>
-                                    <textarea 
-                                        value={pasteText} 
-                                        onChange={e => setPasteText(e.target.value)}
-                                        className="w-full h-32 p-3 border-2 border-slate-300 rounded-lg focus:border-green-500 outline-none font-mono text-xs"
-                                        placeholder={`姓名\t2025-02-01\t2025-02-02\n周哲維\t日A\t夜B...`}
-                                    ></textarea>
-                                    <button onClick={handleParsePaste} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition">
-                                        📥 解析並合併資料
-                                    </button>
-                                    <p className="text-xs text-center text-slate-400">注意：這會採用「合併」模式，不會刪除您既有的其他資料。</p>
-                                </div>
+                                <div className="space-y-4"><p className="text-sm text-slate-500">請在 Google Sheets 複製包含「姓名」與「日期」的區域，然後貼在下方：</p><textarea value={pasteText} onChange={e => setPasteText(e.target.value)} className="w-full h-32 p-3 border-2 border-slate-300 rounded-lg focus:border-green-500 outline-none font-mono text-xs" placeholder={`姓名\t2025-02-01\t2025-02-02\n周哲維\t日A\t夜B...`}></textarea><button onClick={handleParsePaste} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition">📥 解析並合併資料</button><p className="text-xs text-center text-slate-400">注意：這會採用「合併」模式，不會刪除您既有的其他資料。</p></div>
                             )}
                         </div>
                     </div>
@@ -535,12 +411,7 @@
         // --- APP COMPONENT ---
         function ShiftScheduleMatrix() {
             const [currentUser, setCurrentUser] = useState(null); 
-            const [viewStartDate, setViewStartDate] = useState(() => {
-                const d = new Date();
-                d.setDate(d.getDate() - 7); 
-                return d;
-            });
-
+            const [viewStartDate, setViewStartDate] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 7); return d; });
             const [displayUsers, setDisplayUsers] = useState(INITIAL_USER_LIST);
             const [schedule, setSchedule] = useState({});
             const [rotationCycles, setRotationCycles] = useState({}); 
@@ -608,17 +479,7 @@
                         const dbUserNames = Object.keys(dbSchedule);
                         const knownNames = new Set(INITIAL_USER_LIST.map(u => u.name));
                         const newDiscoveredUsers = [];
-                        
-                        dbUserNames.forEach(name => {
-                            if (!knownNames.has(name)) {
-                                newDiscoveredUsers.push({
-                                    id: `auto-${name}`, 
-                                    name: name,
-                                    type: 'NORMAL'
-                                });
-                            }
-                        });
-                        
+                        dbUserNames.forEach(name => { if (!knownNames.has(name)) { newDiscoveredUsers.push({ id: `auto-${name}`, name: name, type: 'NORMAL' }); } });
                         if (newDiscoveredUsers.length > 0) {
                             setDisplayUsers(prev => {
                                 const currentNames = new Set(prev.map(u => u.name));
@@ -626,22 +487,7 @@
                                 return [...INITIAL_USER_LIST, ...uniqueNewUsers];
                             });
                         }
-
-                        try {
-                            localStorage.setItem('shift_schedule_backup', JSON.stringify(data));
-                        } catch(e) { console.warn("Local backup failed", e); }
-                        
-                    } else {
-                        const localBackup = localStorage.getItem('shift_schedule_backup');
-                        if (localBackup) {
-                            showToast("⚠️ 雲端無資料，已從本機備份載入", "warning");
-                            const backupData = JSON.parse(localBackup);
-                             setSchedule(backupData.schedule || {});
-                             setRotationCycles(backupData.rotationCycles || {});
-                             setWeekNightCycles(backupData.weekNightCycles || {});
-                        } else {
-                            setDoc(docRef, { schedule: {}, rotationCycles: {}, weekNightCycles: {}, changeLogs: [] }, { merge: true });
-                        }
+                        try { localStorage.setItem('shift_schedule_backup', JSON.stringify(data)); } catch(e) { }
                     }
                     setDataLoaded(true); 
                 }, (error) => {
@@ -659,16 +505,23 @@
                         setIsDragging(false);
                         if (Object.keys(tempScheduleRef.current).length > 0) {
                             const finalSchedule = { ...schedule };
+                            const partialUpdate = { schedule: {} }; 
+                            
                             Object.keys(tempScheduleRef.current).forEach(u => {
                                 finalSchedule[u] = { ...finalSchedule[u], ...tempScheduleRef.current[u] };
+                                partialUpdate.schedule[u] = finalSchedule[u]; 
                             });
+                            
                             const logEntry = {
                                 time: new Date().toLocaleString('zh-TW'),
                                 user: currentUser ? currentUser.name : 'Unknown',
                                 action: '批量修改 (滑鼠拖曳)',
                                 detail: `更新了 ${Object.keys(tempScheduleRef.current).length} 位人員的班表`
                             };
-                            saveToDb({ schedule: finalSchedule }, false, logEntry);
+                            
+                            setSchedule(finalSchedule);
+                            saveToDb(partialUpdate, false, logEntry); 
+                            
                             tempScheduleRef.current = {}; 
                         }
                     }
@@ -684,10 +537,6 @@
                         resolve(false);
                         return;
                     }
-
-                    const newSchedule = newData.schedule !== undefined ? newData.schedule : schedule;
-                    const newRotationCycles = newData.rotationCycles !== undefined ? newData.rotationCycles : rotationCycles;
-                    const newWeekNightCycles = newData.weekNightCycles !== undefined ? newData.weekNightCycles : weekNightCycles;
                     
                     let newLogs = [...changeLogs];
                     if (logEntry) {
@@ -695,19 +544,11 @@
                         if (newLogs.length > 20) newLogs = newLogs.slice(0, 20); 
                     }
 
-                    if (!isConfigured) {
-                        setSchedule(newSchedule); setRotationCycles(newRotationCycles); setWeekNightCycles(newWeekNightCycles); setChangeLogs(newLogs);
-                        if (!isOverwrite) showToast("尚未設定資料庫，僅暫存於本機", "warning");
-                        resolve(true); return;
-                    }
+                    if (!isConfigured) { resolve(true); return; }
                     if (!auth || !firebaseUser) {
-                        if (!isOverwrite) showToast("尚未連線，請檢查網路或 Firebase 設定", "error");
+                        if (!isOverwrite) showToast("尚未連線", "error");
                         signInAnonymously(auth).catch(e => console.error(e));
                         resolve(false); return;
-                    }
-                    if (!db) {
-                         if (!isOverwrite) showToast("資料庫未初始化", "error");
-                         resolve(false); return;
                     }
 
                     setIsSaving(true);
@@ -718,9 +559,7 @@
                     const timeString = `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
                     
                     const dataToSave = { 
-                        schedule: newSchedule,
-                        rotationCycles: newRotationCycles,
-                        weekNightCycles: newWeekNightCycles,
+                        ...newData,
                         changeLogs: newLogs,
                         lastModifiedBy: currentUser ? currentUser.name : 'Unknown',
                         lastModifiedAt: timeString
@@ -731,17 +570,24 @@
                         const result = await Promise.race([ setDoc(docRef, dataToSave, options), timeoutPromise ]);
                         if (result === 'TIMEOUT') throw new Error("Save timeout");
                         
-                        setSchedule(newSchedule); setRotationCycles(newRotationCycles); setWeekNightCycles(newWeekNightCycles); setChangeLogs(newLogs);
+                        setChangeLogs(newLogs); 
                         if (!isOverwrite) showToast("雲端同步成功！", "success");
                         resolve(true);
                     } catch (e) {
                         console.error("Save error:", e);
                         if (e.code === 'permission-denied') { setPermissionError(true); if (!isOverwrite) showToast("儲存失敗：權限不足", "error"); }
-                        else if (e.message === "Save timeout") { if (!isOverwrite) showToast("連線逾時，請檢查網路狀況", "warning"); }
+                        else if (e.message === "Save timeout") { if (!isOverwrite) showToast("連線逾時", "warning"); }
                         else { if (!isOverwrite) showToast(`儲存失敗: ${e.message}`, "error"); }
                         resolve(false);
                     } finally { setIsSaving(false); }
                 });
+            };
+
+            const forceReload = () => {
+                if(confirm('確定要強制從雲端重新讀取資料嗎？未存檔的修改將會消失。')) {
+                    setDataLoaded(false);
+                    window.location.reload(); 
+                }
             };
 
             const handleSheetImport = (partialSchedule) => {
@@ -756,7 +602,8 @@
                     newSchedule[user] = userSch;
                 });
                 
-                saveToDb({ schedule: newSchedule }, false, {
+                setSchedule(newSchedule); 
+                saveToDb({ schedule: partialSchedule }, false, {
                     time: new Date().toLocaleString('zh-TW'),
                     user: currentUser.name,
                     action: '從 Google Sheet 還原',
@@ -770,15 +617,11 @@
             const goToToday = () => { const d = new Date(); d.setDate(d.getDate() - 7); setViewStartDate(d); };
 
             const handleLogout = async () => {
-                await saveToDb({ schedule, rotationCycles, weekNightCycles }, false);
                 setCurrentUser(null); setSelectedTool(null);
             };
 
             const handleCellMouseDown = (e, userName, dateStr) => {
-                if (isLocked) {
-                    showToast("🔒 請先解除鎖定才能編輯喔！", "warning");
-                    return; 
-                }
+                if (isLocked) { showToast("🔒 請先解除鎖定才能編輯喔！", "warning"); return; }
                 if (!selectedTool) {
                     const currentShift = schedule[userName]?.[dateStr];
                     setActiveCell({ user: userName, dateStr, currentShift });
@@ -804,17 +647,16 @@
                 });
 
                 const userSchedule = { ...(newSchedule[userName] || {}) };
-                if (selectedTool === 'ERASER') {
-                    delete userSchedule[dateStr];
-                } else {
-                    userSchedule[dateStr] = selectedTool;
+                if (selectedTool === 'ERASER') { 
+                    userSchedule[dateStr] = null; // KEY FIX: Set to null instead of delete to force override in merge
+                } else { 
+                    userSchedule[dateStr] = selectedTool; 
                 }
                 
                 if (!tempScheduleRef.current[userName]) tempScheduleRef.current[userName] = {};
                  tempScheduleRef.current[userName] = userSchedule;
 
-                newSchedule[userName] = userSchedule;
-                setSchedule(newSchedule); 
+                setSchedule({ ...schedule, [userName]: userSchedule }); 
             };
 
             const toggleTool = (toolId) => { if (selectedTool === toolId) setSelectedTool(null); else setSelectedTool(toolId); };
@@ -826,23 +668,17 @@
                 const userSchedule = { ...(newSchedule[user] || {}) };
                 
                 let actionStr = '';
-                if (shiftId === 'ERASER') {
-                    delete userSchedule[dateStr];
-                    actionStr = '清除';
-                } else {
-                    userSchedule[dateStr] = shiftId;
-                    actionStr = `排班: ${SHIFT_TYPES[shiftId].name}`;
-                }
+                if (shiftId === 'ERASER') { 
+                    userSchedule[dateStr] = null; // KEY FIX
+                    actionStr = '清除'; 
+                } 
+                else { userSchedule[dateStr] = shiftId; actionStr = `排班: ${SHIFT_TYPES[shiftId].name}`; }
                 newSchedule[user] = userSchedule;
                 
-                const logEntry = {
-                    time: new Date().toLocaleString('zh-TW'),
-                    user: currentUser.name,
-                    action: actionStr,
-                    detail: `${user} / ${dateStr}`
-                };
+                const logEntry = { time: new Date().toLocaleString('zh-TW'), user: currentUser.name, action: actionStr, detail: `${user} / ${dateStr}` };
 
-                saveToDb({ schedule: newSchedule }, false, logEntry);
+                setSchedule(newSchedule);
+                saveToDb({ schedule: { [user]: userSchedule } }, false, logEntry);
                 setActiveCell(null);
             };
 
@@ -854,16 +690,14 @@
 
             const confirmClearUser = (userName) => {
                 setConfirmModal({
-                    show: true, title: `清除 ${userName} 的紀錄`, msg: `確定要清除該人員的所有排班紀錄嗎？\n(注意：不會清除 4-2 輪班與平日小夜的週期背景)`, isDangerous: true,
+                    show: true, title: `清除 ${userName} 的紀錄`, msg: `確定要清除該人員的所有排班紀錄嗎？`, isDangerous: true,
                     action: () => {
                         const newSchedule = { ...schedule };
-                        delete newSchedule[userName];
-                        saveToDb({ schedule: newSchedule }, false, {
-                            time: new Date().toLocaleString('zh-TW'),
-                            user: currentUser.name,
-                            action: '清除人員紀錄',
-                            detail: `清除了 ${userName} 的所有排班`
-                        });
+                        delete newSchedule[userName]; 
+                        setSchedule(newSchedule);
+                        // Save empty object to user key effectively clears them in local view, 
+                        // though to delete key in Firestore properly requires deleteField(), sending empty map is safer fallback
+                        saveToDb({ schedule: { [userName]: {} } }, false, { time: new Date().toLocaleString('zh-TW'), user: currentUser.name, action: '清除人員紀錄', detail: `清除了 ${userName} 的所有排班` });
                         setConfirmModal({ show: false });
                         setUserStatsModal(null); 
                     }
@@ -899,22 +733,13 @@
                     newCycles[targetUser] = userCycles;
                     const totalDays = autoRounds * 4;
                     for (let i = 0; i < totalDays; i++) {
-                        let d = new Date(start);
-                        d.setDate(start.getDate() + i);
-                        const dStr = getDateStr(d);
-                        if (i % 4 < 2) {
-                            userSch[dStr] = autoShiftType;
-                        } else {
-                            userSch[dStr] = 'REST'; 
-                        }
+                        let d = new Date(start); d.setDate(start.getDate() + i); const dStr = getDateStr(d);
+                        if (i % 4 < 2) { userSch[dStr] = autoShiftType; } else { userSch[dStr] = 'REST'; }
                     }
                     newSchedule[targetUser] = userSch;
-                    saveToDb({ schedule: newSchedule, rotationCycles: newCycles }, false, {
-                        time: new Date().toLocaleString('zh-TW'),
-                        user: currentUser.name,
-                        action: '自動排班 (4-2)',
-                        detail: `${targetUser} 從 ${autoStartDate}`
-                    });
+                    setSchedule(newSchedule);
+                    setRotationCycles(newCycles);
+                    saveToDb({ schedule: { [targetUser]: userSch }, rotationCycles: newCycles }, false, { time: new Date().toLocaleString('zh-TW'), user: currentUser.name, action: '自動排班 (4-2)', detail: `${targetUser} 從 ${autoStartDate}` });
                 } else if (autoRule === 'week-night') {
                     const newWNCycles = { ...weekNightCycles };
                     const userWNCycles = newWNCycles[targetUser] || [];
@@ -928,12 +753,9 @@
                         current.setDate(current.getDate() + 1);
                     }
                     newSchedule[targetUser] = userSch;
-                    saveToDb({ schedule: newSchedule, weekNightCycles: newWNCycles }, false, {
-                        time: new Date().toLocaleString('zh-TW'),
-                        user: currentUser.name,
-                        action: '自動排班 (小夜)',
-                        detail: `${targetUser} 從 ${autoStartDate}`
-                    });
+                    setSchedule(newSchedule);
+                    setWeekNightCycles(newWNCycles);
+                    saveToDb({ schedule: { [targetUser]: userSch }, weekNightCycles: newWNCycles }, false, { time: new Date().toLocaleString('zh-TW'), user: currentUser.name, action: '自動排班 (小夜)', detail: `${targetUser} 從 ${autoStartDate}` });
                 }
                 setShowAutoFill(false);
             };
@@ -1002,13 +824,12 @@
                 setUserStatsModal({ name: userName, stats, year });
             };
 
-            // 全年度報表匯出功能 (Styles Enhanced)
             const handleExport = () => {
                 if (!schedule) return;
                 
                 const targetYear = viewStartDate.getFullYear();
                 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                const monthBlocks = []; // Store range info for styling
+                const monthBlocks = []; 
 
                 const ws_data = [];
                 let currentRow = 0;
@@ -1019,7 +840,6 @@
                     const totalDays = lastDay.getDate();
                     const monthStartRow = currentRow;
 
-                    // 1. Header
                     const headerRow = [`${monthNames[month]}-${String(targetYear).slice(-2)}`];
                     const weekendCols = [];
                     const holidayCols = [];
@@ -1034,7 +854,6 @@
                     ws_data.push(headerRow);
                     currentRow++;
 
-                    // 2. Data Rows
                     displayUsers.forEach(user => {
                         const row = [user.name];
                         for (let d = 1; d <= totalDays; d++) {
@@ -1048,7 +867,6 @@
                         currentRow++;
                     });
 
-                    // Store metadata for styling
                     monthBlocks.push({
                         startRow: monthStartRow,
                         endRow: currentRow - 1,
@@ -1057,21 +875,17 @@
                         holidayCols: holidayCols
                     });
 
-                    // Empty row spacer
                     ws_data.push([]);
                     currentRow++;
                 }
 
-                // Create worksheet
                 const ws = XLSX.utils.aoa_to_sheet(ws_data);
 
-                // --- Styling Logic ---
                 const thinBorder = { style: "thin", color: { rgb: "000000" } };
                 const thickBorder = { style: "medium", color: { rgb: "000000" } }; 
                 const blueFill = { fgColor: { rgb: "DDEBF7" } }; 
                 const centerAlign = { horizontal: "center", vertical: "center" };
 
-                // Apply styles based on monthBlocks
                 monthBlocks.forEach(block => {
                     const lastColIndex = block.totalDays; 
                     
@@ -1080,26 +894,18 @@
                             const cellRef = XLSX.utils.encode_cell({ r, c });
                             if (!ws[cellRef]) ws[cellRef] = { v: "", t: "s" }; 
 
-                            // Base Style
                             let s = {
                                 border: { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder },
                                 alignment: centerAlign,
                                 font: { name: "Calibri", sz: 11 }
                             };
 
-                            // Header specific (Bold)
-                            if (r === block.startRow) {
-                                s.font.bold = true;
-                            }
+                            if (r === block.startRow) { s.font.bold = true; }
 
-                            // Holiday/Weekend Fill (Apply to columns > 0)
                             if (c > 0) {
-                                if (block.weekendCols.includes(c) || block.holidayCols.includes(c)) {
-                                    s.fill = blueFill;
-                                }
+                                if (block.weekendCols.includes(c) || block.holidayCols.includes(c)) { s.fill = blueFill; }
                             }
 
-                            // --- Outline Thick Borders ---
                             if (r === block.startRow) s.border.top = thickBorder;
                             if (r === block.endRow) s.border.bottom = thickBorder;
                             if (c === 0) s.border.left = thickBorder;
@@ -1110,7 +916,6 @@
                     }
                 });
 
-                // Set column widths
                 const wscols = [{ wch: 10 }]; 
                 for(let i=0; i<31; i++) wscols.push({ wch: 4 }); 
                 ws['!cols'] = wscols;
@@ -1134,12 +939,13 @@
                         const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
                         if (data.length < 2) { showToast("Excel 格式錯誤或無資料", "error"); return; }
                         const headerRow = data[0];
-                        const newSchedule = { ...schedule }; // Use existing schedule to merge
+                        
+                        const bulkUpdate = {}; 
                         
                         for (let i = 1; i < data.length; i++) {
                             const row = data[i];
                             const userName = row[0];
-                            const userSch = { ...(newSchedule[userName] || {}) };
+                            const userSch = { ...(schedule[userName] || {}) }; 
                             for (let j = 1; j < row.length; j++) {
                                 const dateStr = headerRow[j];
                                 const shiftName = row[j];
@@ -1148,9 +954,11 @@
                                     if (shiftId) userSch[dateStr] = shiftId;
                                 }
                             }
-                            newSchedule[userName] = userSch;
+                            bulkUpdate[userName] = userSch;
                         }
-                        saveToDb({ schedule: newSchedule }, false, {
+                        
+                        setSchedule({ ...schedule, ...bulkUpdate });
+                        saveToDb({ schedule: bulkUpdate }, false, {
                             time: new Date().toLocaleString('zh-TW'),
                             user: currentUser.name,
                             action: '匯入 Excel',
@@ -1166,6 +974,12 @@
 
             return (
                 <React.Fragment>
+                    {!dataLoaded && (
+                        <div className="loading-overlay">
+                            <div className="w-16 h-16 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin mb-4"></div>
+                            <p className="text-slate-800 font-bold text-lg animate-pulse">☁️ 雲端資料讀取中...</p>
+                        </div>
+                    )}
                     <input type="file" ref={fileInputRef} onChange={handleImport} accept=".xlsx, .xls" style={{ display: 'none' }} />
                     {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
@@ -1174,7 +988,7 @@
                             <div className="flex items-center gap-3 min-w-max">
                                 <div className="flex flex-col mr-2">
                                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => { if(!isConnected) showToast('尚未連線至雲端', 'error'); }}>
-                                        <h1 className="text-2xl font-black text-slate-800 tracking-wider">製程班表(精確過年版)</h1>
+                                        <h1 className="text-2xl font-black text-slate-800 tracking-wider">製程班表(強力橡皮擦 v6.1)</h1>
                                         <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]'}`} title={isConnected ? "已連線至雲端" : "未連線"}></div>
                                     </div>
                                     <div className="flex items-center gap-2 mt-1">
@@ -1184,7 +998,8 @@
                                 </div>
                                 <div className="flex gap-2 border-r-2 border-slate-200 pr-3 mr-1">
                                     <button onClick={() => saveToDb({ schedule, rotationCycles, weekNightCycles }, false)} disabled={isSaving || !dataLoaded} className={`group relative flex flex-col items-center justify-center p-2 text-white rounded-xl border-2 btn-press active:scale-95 transition shadow-[3px_3px_0px_rgba(21,128,61,1)] ${isSaving || !dataLoaded ? 'bg-gray-400 border-gray-500 cursor-wait' : 'bg-green-500 border-green-700'}`} title="安全存檔"><SaveIcon size={20} /><span className="text-[10px] font-bold mt-0.5">{isSaving ? '...' : '存檔'}</span></button>
-                                    <button onClick={handleLogout} className="group relative flex flex-col items-center justify-center p-2 bg-slate-100 text-slate-600 rounded-xl border-2 border-slate-400 btn-press active:scale-95 transition shadow-[3px_3px_0px_rgba(148,163,184,1)] hover:bg-red-50 hover:text-red-600 hover:border-red-400 hover:shadow-[3px_3px_0px_rgba(239,68,68,1)]" title="登出系統"><LogOutIcon size={20} /><span className="text-[10px] font-bold mt-0.5">登出</span></button>
+                                    <button onClick={forceReload} className="group relative flex flex-col items-center justify-center p-2 bg-slate-50 text-slate-600 rounded-xl border-2 border-slate-300 btn-press active:scale-95 transition hover:bg-slate-100" title="強制重新讀取"><RefreshCwIcon size={20} /><span className="text-[10px] font-bold mt-0.5">重讀</span></button>
+                                    <button onClick={handleLogout} className="group relative flex flex-col items-center justify-center p-2 bg-slate-50 text-slate-600 rounded-xl border-2 border-slate-300 btn-press active:scale-95 transition hover:bg-red-50 hover:text-red-600" title="登出系統"><LogOutIcon size={20} /><span className="text-[10px] font-bold mt-0.5">登出</span></button>
                                 </div>
                                 <div className="flex items-center bg-white border-2 border-slate-800 rounded-xl px-1 py-1">
                                     <button onClick={prevPeriod} className="p-2 hover:bg-slate-100 rounded-lg transition"><ChevronLeft size={20}/></button>
