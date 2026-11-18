@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <!--
   製程班表 版本紀錄（小更改 .x 進版／大更改 vX 進版）
+  v8.1  「上班」縮成人數只在手機、平板生效，電腦一律顯示名字
+  v8.0  手機與 iPhone Duo 適配：窄螢幕桌曆改清單、精簡標題列（⋯ 選單）、格子窄時日夜上下排、矮螢幕上班只顯示人數
   v7.14 桌曆字體加深加粗、字稍放大，提高清晰度
   v7.13 桌曆排版整理：所有項目統一成「左側色線＋兩字標籤＋名字」小卡，減少框線
   v7.12 四二輪休假標籤只顯示組別兩個字（拿掉「休」）
@@ -21,8 +23,10 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>製程班表 (萬年桌曆版 v7.14)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>製程班表 (萬年桌曆版 v8.1)</title>
     
     <!-- 引入 React 和 ReactDOM -->
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -73,6 +77,7 @@
             background-image: radial-gradient(#E5E0C8 1px, transparent 1px);
             background-size: 20px 20px;
         }
+        html, body { overscroll-behavior: none; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .btn-press:active { transform: translateY(1px); }
@@ -95,7 +100,7 @@
         .cal-cell { scrollbar-width: thin; }
     </style>
 </head>
-<body class="paper-texture h-screen overflow-hidden text-slate-700">
+<body class="paper-texture h-screen h-[100dvh] overflow-hidden text-slate-700" style="padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); -webkit-text-size-adjust: 100%;">
     <div id="root" class="h-full flex flex-col"></div>
 
     <script type="text/babel">
@@ -595,9 +600,31 @@
         };
         const BOTTOM_ORDER = ['WORK', 'EVE_WEEKDAY', 'EVE_WEEKEND', 'LITTLE_NIGHT', 'ROTATION_C', 'MANAGER'];
 
+        // 視窗大小（手機翻轉、iPhone Duo 開合時會即時更新）
+        const useViewport = () => {
+            const get = () => ({ w: window.innerWidth, h: window.innerHeight });
+            const [vp, setVp] = useState(get);
+            useEffect(() => {
+                const on = () => setVp(get());
+                window.addEventListener('resize', on);
+                window.addEventListener('orientationchange', on);
+                return () => { window.removeEventListener('resize', on); window.removeEventListener('orientationchange', on); };
+            }, []);
+            return vp;
+        };
+
         function DeskCalendarView({ monthDate, schedule, displayUsers, onDayClick }) {
             const [focusUser, setFocusUser] = useState(() => { try { return localStorage.getItem('shift_cal_focus') || ''; } catch (e) { return ''; } });
             const changeFocus = (name) => { const v = focusUser === name ? '' : name; setFocusUser(v); try { localStorage.setItem('shift_cal_focus', v); } catch (e) { } };
+            const { w: vw, h: vh } = useViewport();
+
+            // 版面模式：窄螢幕（手機、iPhone Duo 外螢幕）用「清單」，其他用「月曆格」
+            const listMode = vw < 600;
+            const stackDuty = !listMode && vw < 820;   // 格子太窄時，日/夜改成上下排，名字才不會被切掉
+            // 只有手機、平板（觸控螢幕）在畫面太矮或太窄時，「上班」才縮成人數；電腦一律列出名字
+            const isTouch = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+            const compactWork = !listMode && isTouch && (vh < 720 || vw < 820);
+            const shortLabel = !listMode && !stackDuty && vw < 1100;    // 格子偏窄（如 iPhone Duo 橫向）：日夜並排時標籤只留「日／夜」，A/B 看顏色
 
             const year = monthDate.getFullYear();
             const month = monthDate.getMonth();
@@ -609,9 +636,6 @@
             const paydayStr = getDateStr(getPayday(year, month));
             const focusUserObj = displayUsers.find(u => u.name === focusUser);
 
-            const cells = [];
-            for (let i = 0; i < totalCells; i++) cells.push(addDays(firstDay, i - offset));
-
             // 本月焦點人員的上班/休假天數
             let focusWork = 0, focusOff = 0;
             if (focusUserObj) {
@@ -622,26 +646,159 @@
                 }
             }
 
+            // 清單模式：打開時自動捲到今天
+            const todayRowRef = useRef(null);
+            useEffect(() => {
+                if (listMode && todayRowRef.current) todayRowRef.current.scrollIntoView({ block: 'start' });
+            }, [listMode, year, month]);
+
+            // 算出某一天各層的人
+            const computeDay = (date) => {
+                const dateStr = getDateStr(date);
+                const holiday = getHolidayName(date);
+                const weekend = isWeekend(date);
+                const offDay = weekend || !!holiday;
+                const L = { work: {}, rest: {} }, R = { work: {}, rest: {} };
+                const bottom = {}; const leave = []; const otherRest = [];
+                displayUsers.forEach(u => {
+                    const userSch = schedule[u.name];
+                    const sid = userSch?.[dateStr];
+                    const push = (obj, key) => (obj[key] = obj[key] || []).push(u.name);
+                    if (sid === 'DAY_A' || sid === 'DAY_B') push(L.work, sid);
+                    else if (sid === 'NIGHT_A' || sid === 'NIGHT_B') push(R.work, sid);
+                    else if (sid === 'LEAVE') leave.push(u.name);
+                    else if (sid === 'NORMAL') push(bottom, 'WORK');
+                    else if (sid && SHIFT_TYPES[sid] && sid !== 'REST') push(bottom, sid);
+                    else if (sid === 'REST') {
+                        const crew = getCrew(userSch, date);
+                        if (crew && crew.startsWith('DAY')) push(L.rest, crew);
+                        else if (crew) push(R.rest, crew);
+                        else if (!offDay) otherRest.push(u.name); // 週休、國定假日的休不顯示
+                    } else if (!sid && !offDay) push(bottom, 'WORK'); // 規則：除了四二輪與已標示休假的，其餘都是上班
+                });
+                const toRows = (side, kind) => Object.keys(side[kind]).sort().map(k => ({ crew: k, names: side[kind][k] }));
+                return {
+                    dateStr, holiday, weekend, lunarText: getLunarText(date),
+                    isToday: dateStr === todayStr, isPayday: dateStr === paydayStr,
+                    lw: toRows(L, 'work'), rw: toRows(R, 'work'), lr: toRows(L, 'rest'), rr: toRows(R, 'rest'),
+                    bottom, leave, otherRest,
+                    focusSt: focusUserObj ? getDayStatus(focusUserObj, schedule[focusUser]?.[dateStr], date) : null
+                };
+            };
+
             const NameList = ({ names }) => names.map((n, i) => (
                 <React.Fragment key={n}>
                     <span className={`inline-block whitespace-nowrap ${n === focusUser ? 'bg-slate-900 text-white rounded px-0.5' : ''}`}>{n}{i < names.length - 1 && <span className="text-current opacity-60">、</span>}</span>
                 </React.Fragment>
             ));
 
-            return (
-                <div className="flex-1 min-h-0 flex flex-col p-2 overflow-x-auto">
-                    <div className="flex-1 min-h-0 min-w-[760px] w-full max-w-[1500px] mx-auto bg-white rounded-2xl border-[3px] border-slate-800 shadow-[5px_5px_0px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col">
-                        {/* 標題列：年月 + 看某個人（合併成一列，省下高度） */}
-                        <div className="shrink-0 bg-slate-800 text-white px-3 py-1.5 flex items-center gap-3 flex-wrap">
-                            <div className="text-xl font-black tracking-widest whitespace-nowrap">{year} 年 {month + 1} 月</div>
-                            <div className="flex flex-wrap items-center gap-1 ml-auto">
-                                <span className="text-xs font-black text-slate-300 mr-0.5">👀</span>
-                                {displayUsers.map(u => (
-                                    <button key={u.id} onClick={() => changeFocus(u.name)} className={`px-2 py-0.5 rounded-full text-xs font-bold border transition ${focusUser === u.name ? 'bg-yellow-300 text-slate-900 border-yellow-300' : 'bg-slate-700 text-slate-200 border-slate-600 hover:border-slate-300'}`}>{u.name}</button>
-                                ))}
-                                {focusUserObj && <span className="ml-1 text-xs font-bold text-slate-300 whitespace-nowrap">上班 <span className="text-green-300 text-sm">{focusWork}</span>・休 <span className="text-rose-300 text-sm">{focusOff}</span></span>}
+            // 統一的小卡：左邊一條色線＋兩個字的標籤＋名字
+            const Chip = ({ tone, label, names, wrap = false, countOnly = false, tight = false }) => {
+                const t = CAL_TONE[tone];
+                return (
+                    <div className={`flex items-start ${tight ? 'gap-0.5 pl-1 pr-0.5' : 'gap-1.5 pl-1.5 pr-1'} rounded-r-md border-l-[3px] py-[3px] [@media(max-height:820px)]:py-px min-w-0 ${t.bar} ${t.bg}`}>
+                        <span className={`shrink-0 font-black ${t.label}`}>{label}</span>
+                        <span className={`min-w-0 font-bold ${t.text} ${wrap ? '' : 'truncate'}`}>
+                            {countOnly ? `${names.length} 人${names.includes(focusUser) ? '（含 ' + focusUser + '）' : ''}`
+                                : wrap ? <NameList names={names} />
+                                : names.map((n, i) => <React.Fragment key={n}>{i > 0 && '、'}<span className={n === focusUser ? 'bg-slate-900 text-white rounded px-0.5' : ''}>{n}</span></React.Fragment>)}
+                        </span>
+                    </div>
+                );
+            };
+            const toneOf = (crew) => crew.endsWith('_A') ? 'A' : 'B';
+
+            const FocusBadge = ({ st }) => (
+                <span className={`px-1.5 rounded font-black text-[11px] leading-tight border ${st.kind === 'work' ? calColor(st.shiftId) : st.kind === 'leave' ? CAL_COLORS.LEAVE : st.kind === 'rest' ? CAL_COLORS.REST : 'bg-white text-slate-300 border-dashed border-slate-200'}`}>
+                    {st.kind === 'work' ? CAL_SHIFTS[st.shiftId].name : st.kind === 'leave' ? '請假' : st.kind === 'rest' ? '休' : '未排'}
+                </span>
+            );
+
+            // 一個 2 欄（或窄畫面時上下排）的日／夜列
+            const PairRows = ({ left, right, tone }) => {
+                const rows = Math.max(left.length, right.length);
+                if (stackDuty) {
+                    return [...left, ...right].map(g => <Chip key={g.crew} tone={tone || toneOf(g.crew)} label={SHIFT_TYPES[g.crew].name} names={g.names} />);
+                }
+                return Array.from({ length: rows }).map((_, i) => (
+                    <div key={i} className="grid grid-cols-2 gap-[3px]">
+                        {[left[i], right[i]].map((g, j) => g ? <Chip key={j} tight={shortLabel} tone={tone || toneOf(g.crew)} label={shortLabel ? SHIFT_TYPES[g.crew].name.slice(0, 1) : SHIFT_TYPES[g.crew].name} names={g.names} /> : <div key={j}></div>)}
+                    </div>
+                ));
+            };
+
+            // 四層內容：值班 → 上班 → 請假 → 四二輪休假（貼底）
+            const Layers = ({ d, stretch = true }) => (
+                <div className={`${stretch ? 'flex-1' : ''} flex flex-col gap-[3px] text-[12px] max-[1600px]:text-[11px] leading-[1.3] [@media(max-height:820px)]:leading-[1.15] ${listMode ? '!text-[13px]' : ''} ${d.focusSt ? 'opacity-45' : ''}`}>
+                    <PairRows left={d.lw} right={d.rw} />
+                    {BOTTOM_ORDER.filter(k => d.bottom[k]).map(k => <Chip key={k} tone="WORK" label={CAL_SHIFTS[k].name} names={d.bottom[k]} wrap countOnly={compactWork && k === 'WORK'} />)}
+                    {d.leave.length > 0 && <Chip tone="LEAVE" label="請假" names={d.leave} wrap />}
+                    <div className={`${stretch ? 'mt-auto' : ''} flex flex-col gap-[3px] pt-[3px]`}>
+                        <PairRows left={d.lr} right={d.rr} tone="REST" />
+                        {d.otherRest.length > 0 && <Chip tone="REST" label="休" names={d.otherRest} wrap />}
+                    </div>
+                </div>
+            );
+
+            const header = (
+                <div className="shrink-0 bg-slate-800 text-white px-3 py-1.5 flex items-center gap-3 flex-wrap">
+                    <div className="text-xl font-black tracking-widest whitespace-nowrap">{year} 年 {month + 1} 月</div>
+                    <div className={`flex items-center gap-1 ml-auto ${listMode ? 'w-full overflow-x-auto hide-scrollbar flex-nowrap pb-0.5' : 'flex-wrap'}`}>
+                        <span className="text-xs font-black text-slate-300 mr-0.5 shrink-0">👀</span>
+                        {displayUsers.map(u => (
+                            <button key={u.id} onClick={() => changeFocus(u.name)} className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-bold border transition ${focusUser === u.name ? 'bg-yellow-300 text-slate-900 border-yellow-300' : 'bg-slate-700 text-slate-200 border-slate-600 hover:border-slate-300'}`}>{u.name}</button>
+                        ))}
+                        {focusUserObj && <span className="shrink-0 ml-1 text-xs font-bold text-slate-300 whitespace-nowrap">上班 <span className="text-green-300 text-sm">{focusWork}</span>・休 <span className="text-rose-300 text-sm">{focusOff}</span></span>}
+                    </div>
+                </div>
+            );
+
+            // ===== 清單模式（手機直向、iPhone Duo 外螢幕）=====
+            if (listMode) {
+                const days = Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1));
+                return (
+                    <div className="flex-1 min-h-0 flex flex-col p-1.5">
+                        <div className="flex-1 min-h-0 w-full bg-white rounded-2xl border-[3px] border-slate-800 overflow-hidden flex flex-col">
+                            {header}
+                            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                                {days.map(date => {
+                                    const d = computeDay(date);
+                                    const red = d.holiday || d.weekend;
+                                    return (
+                                        <div key={d.dateStr} ref={d.isToday ? todayRowRef : null} onClick={() => onDayClick(d.dateStr)}
+                                            className={`flex gap-2 px-2 py-2 border-b border-slate-200 active:bg-amber-50 ${d.holiday ? 'bg-sky-50/50' : d.weekend ? 'bg-slate-50' : 'bg-white'} ${d.isToday ? 'ring-2 ring-inset ring-blue-400' : ''}`}>
+                                            <div className="w-11 shrink-0 flex flex-col items-center pt-0.5">
+                                                <span className={`inline-flex items-center justify-center min-w-[28px] h-[28px] rounded-full text-lg font-black leading-none ${d.isToday ? 'bg-blue-600 text-white px-1' : red ? 'text-rose-600' : 'text-slate-900'}`}>{date.getDate()}</span>
+                                                <span className={`text-[11px] font-black ${red ? 'text-rose-600' : 'text-slate-500'}`}>週{'日一二三四五六'[date.getDay()]}</span>
+                                                <span className={`text-[10px] font-bold ${d.lunarText.endsWith('月') ? 'text-orange-600' : 'text-slate-400'}`}>{d.lunarText}</span>
+                                                {d.isPayday && <span className="text-xs" title="發薪日">🏧</span>}
+                                            </div>
+                                            <div className="flex-1 min-w-0 flex flex-col gap-1">
+                                                {(d.holiday || d.focusSt) && (
+                                                    <div className="flex items-center gap-1.5">
+                                                        {d.focusSt && <FocusBadge st={d.focusSt} />}
+                                                        {d.holiday && <span className="text-sky-700 text-xs font-black">{d.holiday}</span>}
+                                                    </div>
+                                                )}
+                                                <Layers d={d} stretch={false} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
+                    </div>
+                );
+            }
+
+            // ===== 月曆格模式 =====
+            const cells = [];
+            for (let i = 0; i < totalCells; i++) cells.push(addDays(firstDay, i - offset));
+
+            return (
+                <div className="flex-1 min-h-0 flex flex-col p-1.5 sm:p-2">
+                    <div className="flex-1 min-h-0 w-full max-w-[1500px] mx-auto bg-white rounded-2xl border-[3px] border-slate-800 shadow-[5px_5px_0px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col">
+                        {header}
                         <div className="shrink-0 grid grid-cols-7 bg-slate-50 border-b border-slate-200">
                             {['日', '一', '二', '三', '四', '五', '六'].map((w, i) => (
                                 <div key={w} className={`py-0.5 text-center font-black text-xs ${i === 0 || i === 6 ? 'text-rose-600' : 'text-slate-600'}`}>{w}</div>
@@ -649,98 +806,25 @@
                         </div>
                         <div className="flex-1 min-h-0 grid grid-cols-7" style={{ gridTemplateRows: `repeat(${totalCells / 7}, minmax(0, 1fr))` }}>
                             {cells.map((date, idx) => {
-                                const dateStr = getDateStr(date);
                                 const inMonth = date.getMonth() === month;
-                                const holiday = getHolidayName(date);
-                                const weekend = isWeekend(date);
-                                const isToday = dateStr === todayStr;
-                                const lunarText = getLunarText(date);
-
-                                // 左欄 = 日班，右欄 = 夜班；上面是上班，下面是休（依組別分列）
-                                const L = { work: {}, rest: {} }, R = { work: {}, rest: {} };
-                                const bottom = {}; const leave = []; const otherRest = [];
-                                const offDay = weekend || !!holiday;
-                                displayUsers.forEach(u => {
-                                    const userSch = schedule[u.name];
-                                    const sid = userSch?.[dateStr];
-                                    const push = (obj, key) => (obj[key] = obj[key] || []).push(u.name);
-                                    if (sid === 'DAY_A' || sid === 'DAY_B') push(L.work, sid);
-                                    else if (sid === 'NIGHT_A' || sid === 'NIGHT_B') push(R.work, sid);
-                                    else if (sid === 'LEAVE') leave.push(u.name);
-                                    else if (sid === 'NORMAL') push(bottom, 'WORK');
-                                    else if (sid && SHIFT_TYPES[sid] && sid !== 'REST') push(bottom, sid);
-                                    else if (sid === 'REST') {
-                                        const crew = getCrew(userSch, date);
-                                        if (crew && crew.startsWith('DAY')) push(L.rest, crew);
-                                        else if (crew) push(R.rest, crew);
-                                        else if (!offDay) otherRest.push(u.name); // 週休、國定假日的休不顯示
-                                    } else if (!sid && !offDay) push(bottom, 'WORK'); // 規則：除了四二輪與已標示休假的，其餘都是上班
-                                });
-                                const toRows = (side, kind) => Object.keys(side[kind]).sort().map(k => ({ crew: k, names: side[kind][k] }));
-                                const lw = toRows(L, 'work'), rw = toRows(R, 'work'), lr = toRows(L, 'rest'), rr = toRows(R, 'rest');
-                                const workRows = Math.max(lw.length, rw.length), restRows = Math.max(lr.length, rr.length);
-                                const focusSt = focusUserObj ? getDayStatus(focusUserObj, schedule[focusUser]?.[dateStr], date) : null;
-
+                                const d = computeDay(date);
                                 let bg = 'bg-white';
-                                if (holiday) bg = 'bg-sky-50/40';
-                                else if (weekend) bg = 'bg-slate-50';
+                                if (d.holiday) bg = 'bg-sky-50/40';
+                                else if (d.weekend) bg = 'bg-slate-50';
                                 if (!inMonth) bg = 'bg-slate-50/60';
-
-                                // 統一的小卡：左邊一條色線＋兩個字的標籤＋名字
-                                const Chip = ({ tone, label, names, wrap = false, k }) => {
-                                    const t = CAL_TONE[tone];
-                                    return (
-                                        <div key={k} className={`flex items-start gap-1.5 rounded-r-md border-l-[3px] pl-1.5 pr-1 py-[3px] [@media(max-height:820px)]:py-px min-w-0 ${t.bar} ${t.bg}`}>
-                                            <span className={`shrink-0 font-black ${t.label}`}>{label}</span>
-                                            <span className={`min-w-0 font-bold ${t.text} ${wrap ? '' : 'truncate'}`}>
-                                                {wrap ? <NameList names={names} /> : names.map((n, i) => <React.Fragment key={n}>{i > 0 && '、'}<span className={n === focusUser ? 'bg-slate-900 text-white rounded px-0.5' : ''}>{n}</span></React.Fragment>)}
-                                            </span>
-                                        </div>
-                                    );
-                                };
-                                const toneOf = (crew) => crew.endsWith('_A') ? 'A' : 'B';
-
                                 return (
-                                    <div key={idx} onClick={() => onDayClick(dateStr)}
-                                        className={`relative min-h-0 overflow-y-auto cal-cell border-r border-b border-slate-200 px-1.5 py-1 [@media(max-height:820px)]:py-0.5 cursor-pointer hover:bg-amber-50/60 transition-colors flex flex-col ${bg} ${isToday ? 'ring-2 ring-inset ring-blue-400' : ''}`}>
-                                        {/* 日期列 */}
+                                    <div key={idx} onClick={() => onDayClick(d.dateStr)}
+                                        className={`relative min-h-0 min-w-0 overflow-y-auto cal-cell border-r border-b border-slate-200 px-1 sm:px-1.5 py-1 [@media(max-height:820px)]:py-0.5 cursor-pointer hover:bg-amber-50/60 transition-colors flex flex-col ${bg} ${d.isToday ? 'ring-2 ring-inset ring-blue-400' : ''}`}>
                                         <div className={`flex items-center gap-1 mb-1 [@media(max-height:820px)]:mb-0.5 min-w-0 ${inMonth ? '' : 'opacity-30'}`}>
-                                            <span className={`inline-flex items-center justify-center min-w-[22px] h-[22px] [@media(max-height:820px)]:h-[18px] [@media(max-height:820px)]:min-w-[18px] rounded-full text-[14px] [@media(max-height:820px)]:text-[13px] font-black leading-none ${isToday ? 'bg-blue-600 text-white px-1' : holiday || weekend ? 'text-rose-600' : 'text-slate-900'}`}>{date.getDate()}</span>
-                                            {dateStr === paydayStr && <span className="text-xs leading-none" title="發薪日">🏧</span>}
-                                            {focusSt && inMonth && (
-                                                <span className={`px-1.5 rounded font-black text-[11px] leading-tight border ${focusSt.kind === 'work' ? calColor(focusSt.shiftId) : focusSt.kind === 'leave' ? CAL_COLORS.LEAVE : focusSt.kind === 'rest' ? CAL_COLORS.REST : 'bg-white text-slate-300 border-dashed border-slate-200'}`}>
-                                                    {focusSt.kind === 'work' ? CAL_SHIFTS[focusSt.shiftId].name : focusSt.kind === 'leave' ? '請假' : focusSt.kind === 'rest' ? '休' : '未排'}
-                                                </span>
-                                            )}
+                                            <span className={`inline-flex items-center justify-center min-w-[22px] h-[22px] [@media(max-height:820px)]:h-[18px] [@media(max-height:820px)]:min-w-[18px] rounded-full text-[14px] [@media(max-height:820px)]:text-[13px] font-black leading-none ${d.isToday ? 'bg-blue-600 text-white px-1' : d.holiday || d.weekend ? 'text-rose-600' : 'text-slate-900'}`}>{date.getDate()}</span>
+                                            {d.isPayday && <span className="text-xs leading-none" title="發薪日">🏧</span>}
+                                            {d.focusSt && inMonth && <FocusBadge st={d.focusSt} />}
                                             <span className="ml-auto flex items-center gap-1 min-w-0">
-                                                {holiday && <span className="text-sky-700 text-[11px] font-black truncate">{holiday}</span>}
-                                                <span className={`text-[11px] font-bold whitespace-nowrap ${lunarText.endsWith('月') ? 'text-orange-600' : 'text-slate-500'}`}>{lunarText}</span>
+                                                {d.holiday && <span className="text-sky-700 text-[11px] font-black truncate">{d.holiday}</span>}
+                                                {!(stackDuty && d.holiday) && <span className={`text-[11px] font-bold whitespace-nowrap ${d.lunarText.endsWith('月') ? 'text-orange-600' : 'text-slate-500'}`}>{d.lunarText}</span>}
                                             </span>
                                         </div>
-
-                                        {inMonth && (
-                                        <div className={`flex-1 flex flex-col gap-[3px] text-[12px] max-[1600px]:text-[11px] leading-[1.3] [@media(max-height:820px)]:leading-[1.15] ${focusSt ? 'opacity-45' : ''}`}>
-                                            {/* 第 1 層：值班（左日、右夜） */}
-                                            {Array.from({ length: workRows }).map((_, i) => (
-                                                <div key={`w${i}`} className="grid grid-cols-2 gap-[3px]">
-                                                    {[lw[i], rw[i]].map((g, j) => g ? <Chip k={j} tone={toneOf(g.crew)} label={SHIFT_TYPES[g.crew].name} names={g.names} /> : <div key={j}></div>)}
-                                                </div>
-                                            ))}
-                                            {/* 第 2 層：上班 */}
-                                            {BOTTOM_ORDER.filter(k => bottom[k]).map(k => <Chip k={k} tone="WORK" label={CAL_SHIFTS[k].name} names={bottom[k]} wrap />)}
-                                            {/* 第 3 層：請假 */}
-                                            {leave.length > 0 && <Chip k="leave" tone="LEAVE" label="請假" names={leave} wrap />}
-                                            {/* 第 4 層：四二輪休假（固定在最下方） */}
-                                            <div className="mt-auto flex flex-col gap-[3px] pt-[3px]">
-                                                {Array.from({ length: restRows }).map((_, i) => (
-                                                    <div key={`r${i}`} className="grid grid-cols-2 gap-[3px]">
-                                                        {[lr[i], rr[i]].map((g, j) => g ? <Chip k={j} tone="REST" label={SHIFT_TYPES[g.crew].name} names={g.names} /> : <div key={j}></div>)}
-                                                    </div>
-                                                ))}
-                                                {otherRest.length > 0 && <Chip k="orest" tone="REST" label="休" names={otherRest} wrap />}
-                                            </div>
-                                        </div>
-                                        )}
+                                        {inMonth && <Layers d={d} />}
                                     </div>
                                 );
                             })}
@@ -858,6 +942,9 @@
             const [confirmModal, setConfirmModal] = useState({ show: false, title: '', msg: '', action: null, isDangerous: false });
             const [showInfoModal, setShowInfoModal] = useState(false);
             const [showLogModal, setShowLogModal] = useState(false); 
+            const [showMenu, setShowMenu] = useState(false);
+            const { w: viewportW } = useViewport();
+            const compactHeader = viewportW < 1100; // 手機、iPhone Duo、平板直向：用精簡標題列
             const [toast, setToast] = useState(null);
             const fileInputRef = useRef(null);
             
@@ -1570,12 +1657,72 @@
                     <input type="file" ref={fileInputRef} onChange={handleImport} accept=".xlsx, .xls" style={{ display: 'none' }} />
                     {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
+                    {compactHeader ? (
+                    <header className="z-30 flex-none bg-white/95 backdrop-blur-sm shadow-sm border-b-2 border-stone-200 relative">
+                        {/* 第 1 列：標題、使用者、鎖定、更多 */}
+                        <div className="flex items-center gap-2 px-2 pt-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <h1 className="text-lg font-black text-slate-800 truncate">製程班表 <span className="text-sm text-slate-400">v8.1</span></h1>
+                                <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} title={isConnected ? "已連線至雲端" : "未連線"}></div>
+                            </div>
+                            <div className="flex items-center gap-1 text-sm font-bold text-slate-800 shrink-0"><span className="bg-yellow-200 px-1 rounded text-xs">Hi</span>{currentUser.name}</div>
+                            <div className="ml-auto flex items-center gap-1.5 shrink-0">
+                                <button onClick={() => setIsLocked(!isLocked)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border-2 text-xs font-black ${isLocked ? 'bg-red-50 text-red-600 border-red-300' : 'bg-white text-slate-700 border-slate-400'}`}>
+                                    {isLocked ? <LockIcon size={16} /> : <UnlockIcon size={16} />}{isLocked ? '鎖定' : '編輯'}
+                                </button>
+                                <button onClick={() => setShowMenu(v => !v)} className="px-2.5 py-1.5 rounded-xl border-2 border-slate-800 bg-white text-slate-800 font-black text-sm leading-none" title="更多">⋯</button>
+                            </div>
+                        </div>
+                        {/* 第 2 列：月份切換、今天、表格/桌曆 */}
+                        <div className="flex items-center gap-1.5 px-2 py-2">
+                            <div className="flex items-center bg-white border-2 border-slate-800 rounded-xl">
+                                <button onClick={prevPeriod} className="p-1.5 active:bg-slate-100 rounded-lg"><ChevronLeft size={20}/></button>
+                                <div className="px-1 font-black text-base text-center text-slate-800 min-w-[72px]">{viewMode === 'calendar' ? `${calMonth.getFullYear()}/${calMonth.getMonth() + 1}` : <span className="text-xs text-slate-400">切換</span>}</div>
+                                <button onClick={nextPeriod} className="p-1.5 active:bg-slate-100 rounded-lg"><ChevronRight size={20}/></button>
+                            </div>
+                            <button onClick={goToToday} className="p-1.5 text-slate-800 rounded-xl active:bg-slate-100" title="回到今天"><CalendarIcon size={22} /></button>
+                            <div className="ml-auto flex bg-white border-2 border-slate-800 rounded-xl p-0.5 gap-0.5">
+                                <button onClick={() => changeViewMode('table')} className={`px-2.5 py-1 rounded-lg text-sm font-black ${viewMode === 'table' ? 'bg-slate-800 text-white' : 'text-slate-600'}`}>📋 表格</button>
+                                <button onClick={() => changeViewMode('calendar')} className={`px-2.5 py-1 rounded-lg text-sm font-black ${viewMode === 'calendar' ? 'bg-slate-800 text-white' : 'text-slate-600'}`}>📅 桌曆</button>
+                            </div>
+                        </div>
+                        {/* 第 3 列（表格模式）：排班工具，可左右滑 */}
+                        {viewMode === 'table' && (
+                            <div className="flex items-center gap-1.5 px-2 pb-2 overflow-x-auto hide-scrollbar">
+                                <button onClick={() => toggleTool(TOOL_ERASER.id)} className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-xl border-2 text-sm font-bold ${selectedTool === TOOL_ERASER.id ? 'border-slate-900 ' + TOOL_ERASER.color : 'bg-white border-slate-200 text-slate-700'}`}><span>{TOOL_ERASER.icon}</span>{TOOL_ERASER.name}</button>
+                                {Object.values(SHIFT_TYPES).filter(t => t.id !== 'REST' && t.id !== 'NORMAL').map(type => (
+                                    <button key={type.id} onClick={() => toggleTool(type.id)} className={`shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-xl border-2 text-xs font-bold ${selectedTool === type.id ? 'border-slate-900 ' + type.color : 'bg-white border-slate-200 text-slate-700'}`}><span className="text-base leading-none">{type.icon}</span>{type.name}</button>
+                                ))}
+                            </div>
+                        )}
+                        {/* 「⋯」選單 */}
+                        {showMenu && (
+                            <React.Fragment>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)}></div>
+                                <div className="absolute right-2 top-12 z-50 w-44 bg-white rounded-xl border-2 border-slate-800 shadow-xl overflow-hidden text-sm font-bold text-slate-700">
+                                    {[
+                                        ['💾 存檔', () => { const partial = {}; editedUsersRef.current.forEach(u => { if (schedule[u]) partial[u] = schedule[u]; }); saveToDb({ schedule: partial, rotationCycles, weekNightCycles }, false); }],
+                                        ['🔄 重新讀取', forceReload],
+                                        ['📜 修改紀錄', () => setShowLogModal(true)],
+                                        ['🗂️ Google Sheet 備份', () => setShowSheetModal(true)],
+                                        ['⬇️ 專業匯出 Excel', handleExport],
+                                        ['⬆️ 匯入 Excel', handleImportClick],
+                                        ['🚪 登出', handleLogout]
+                                    ].map(([label, fn]) => (
+                                        <button key={label} onClick={() => { setShowMenu(false); fn(); }} className="block w-full text-left px-3 py-2.5 border-b border-slate-100 last:border-0 active:bg-slate-100 hover:bg-slate-50">{label}</button>
+                                    ))}
+                                    {lastModifiedInfo && <div className="px-3 py-1.5 text-[10px] text-slate-400 bg-slate-50">Update: {lastModifiedInfo.by} {lastModifiedInfo.at}</div>}
+                                </div>
+                            </React.Fragment>
+                        )}
+                    </header>
+                    ) : (
                     <header className="z-30 flex-none bg-white/90 backdrop-blur-sm shadow-sm border-b-2 border-stone-200">
                         <div className="w-full overflow-x-auto hide-scrollbar py-3 px-2">
                             <div className="flex items-center gap-3 min-w-max">
                                 <div className="flex flex-col mr-2">
                                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => { if(!isConnected) showToast('尚未連線至雲端', 'error'); }}>
-                                        <h1 className="text-2xl font-black text-slate-800 tracking-wider">製程班表(萬年桌曆 v7.14)</h1>
+                                        <h1 className="text-2xl font-black text-slate-800 tracking-wider">製程班表(萬年桌曆 v8.1)</h1>
                                         <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]'}`} title={isConnected ? "已連線至雲端" : "未連線"}></div>
                                     </div>
                                     <div className="flex items-center gap-2 mt-1">
@@ -1628,6 +1775,7 @@
                             </div>
                         </div>
                     </header>
+                    )}
 
                     {viewMode === 'calendar' && (
                         <DeskCalendarView monthDate={calMonth} schedule={schedule} displayUsers={displayUsers} onDayClick={setDayModalDate} />
@@ -1650,11 +1798,11 @@
                             <table className="border-collapse w-full min-w-max" style={{ touchAction: (selectedTool && !isLocked) ? 'none' : 'auto' }}>
                                 <thead className="sticky top-0 z-20 bg-stone-50 shadow-sm">
                                     <tr>
-                                        <th className="bg-stone-100 border-b border-r border-stone-300 min-w-[140px]"></th>
+                                        <th className="bg-stone-100 border-b border-r border-stone-300 min-w-[76px] sm:min-w-[140px] sticky left-0 z-30"></th>
                                         {monthGroups.map((group, idx) => (<th key={idx} colSpan={group.count} className="bg-slate-800 text-white border-r border-slate-600 py-1 text-center font-bold text-sm tracking-wider">{group.label}</th>))}
                                     </tr>
                                     <tr>
-                                        <th className="sticky left-0 z-30 bg-stone-100 border-b-2 border-r-2 border-stone-300 min-w-[140px] p-2 text-center font-black text-slate-600 text-xl tracking-widest shadow-[2px_0_5px_rgba(0,0,0,0.05)]">姓名</th>
+                                        <th className="sticky left-0 z-30 bg-stone-100 border-b-2 border-r-2 border-stone-300 min-w-[76px] sm:min-w-[140px] p-1 sm:p-2 text-center font-black text-slate-600 text-base sm:text-xl tracking-widest shadow-[2px_0_5px_rgba(0,0,0,0.05)]">姓名</th>
                                         {daysData.map(day => (
                                             <th key={day.dateStr} className={`border-b-2 border-r border-stone-200 min-w-[48px] py-2 text-center relative ${day.holiday ? 'bg-sky-50' : day.isWeekend ? 'bg-rose-50' : 'bg-white'}`}>
                                                 <div className={`text-sm font-bold mb-0.5 ${day.isWeekend || day.holiday ? 'text-rose-600' : 'text-slate-500'}`}>{day.dayOfWeek}</div>
@@ -1672,7 +1820,7 @@
                                         <tr key={userData.id} className="group/row bg-white hover:bg-yellow-50/50 transition-colors border-b border-stone-200">
                                             <td className="sticky left-0 z-10 bg-white group-hover/row:bg-yellow-50/50 border-r-2 border-stone-300 p-0 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                                                 <div 
-                                                    className="px-3 py-2 h-full group/namecell min-w-[140px] flex justify-center items-center cursor-pointer hover:bg-blue-50 transition-colors"
+                                                    className="px-1 sm:px-3 py-2 h-full group/namecell min-w-[76px] sm:min-w-[140px] flex justify-center items-center cursor-pointer hover:bg-blue-50 transition-colors"
                                                     onClick={() => handleUserClick(userData.name)}
                                                     title="點擊查看統計"
                                                 >
